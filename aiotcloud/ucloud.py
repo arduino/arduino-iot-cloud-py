@@ -23,9 +23,9 @@
 import time
 import asyncio
 import logging
-from umqtt_tls import MQTTClient
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
+from aiotcloud.umqtt import MQTTClient
 
 class AIOTProperty(SenmlRecord):
     def __init__(self, aiot, name, value, senml_callback, on_read=None, on_write=None, interval=None):

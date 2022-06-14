@@ -29,44 +29,7 @@ try:
 except ImportError:
     import socket
     import struct
-
-    # Provide wrap_socket using m2crypto backend for HSM support. 
-    from M2Crypto import Engine, SSL, m2
-
-    _key = None
-    _cert = None
-
-    # Default pkcs11 engine path and hsm provider.
-    ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
-    MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
-
-    def wrap_socket(sock_in, pin, certfile, keyfile, ca_certs=None,
-            ciphers=None, engine_path=ENGINE_PATH, module_path=MODULE_PATH):
-        global _key, _cert
-        if _key is None or _cert is None:
-            Engine.load_dynamic_engine("pkcs11", engine_path)
-            pkcs11 = Engine.Engine("pkcs11")
-            pkcs11.ctrl_cmd_string("MODULE_PATH", module_path)
-            pkcs11.ctrl_cmd_string("PIN", pin)
-            pkcs11.init()
-            _key = pkcs11.load_private_key(keyfile)
-            _cert = pkcs11.load_certificate(certfile)
-    
-        ctx = SSL.Context('tls')
-        ctx.set_default_verify_paths()
-        ctx.set_allow_unknown_ca(False)
-        if ciphers is not None:
-            ctx.set_cipher_list(ciphers)
-        if ca_certs is not None:
-            if ctx.load_verify_locations(ca_certs) != 1:
-                raise Exception('Failed to load CA certs')
-            ctx.set_verify(SSL.verify_peer, depth=9)
-    
-        # Set key/cert
-        m2.ssl_ctx_use_x509(ctx.ctx, _cert.x509)
-        m2.ssl_ctx_use_pkey_privkey(ctx.ctx, _key.pkey)
-        SSL.Connection.postConnectionCheck = None
-        return SSL.Connection(ctx, sock=sock_in)
+    from aiotcloud.ussl import wrap_socket
 
 class MQTTException(Exception):
     pass
