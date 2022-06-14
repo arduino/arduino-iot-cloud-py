@@ -30,18 +30,23 @@ from aiotcloud.umqtt import MQTTClient
 class AIOTProperty(SenmlRecord):
     def __init__(self, aiot, name, value, senml_callback, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
-        self.dtype = type(value)
         self.on_read = on_read
         self.on_write = on_write
         self.interval = interval
+        self.updated = False
+        self.dtype = type(value)
         super().__init__(name, value=value, callback=senml_callback)
 
     def __setattr__(self, key, value):
         if (key == "value" and value is not None):
-            if (not isinstance(value, self.dtype)):
+            if (self.dtype is type(None)):
+                self.dtype = type(value)
+                logging.debug("task: '{}' shadow: '{}'".format(self.name, value))
+            elif not isinstance(value, self.dtype):
                 raise TypeError("Invalid data type, expected {}".format(self.dtype))
-            self.updated = True
-            logging.debug("task: '{}' updated: '{}'".format(self.name, value))
+            else:
+                self.updated = True
+                logging.debug("task: '{}' updated: '{}'".format(self.name, value))
         super().__setattr__(key, value)
 
     async def run(self):
