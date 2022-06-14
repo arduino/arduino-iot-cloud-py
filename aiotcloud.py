@@ -23,7 +23,7 @@
 import time
 import asyncio
 import logging
-from umqtt import MQTTClient
+from umqtt_tls import MQTTClient
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
 
@@ -50,7 +50,7 @@ class AIOTProperty(SenmlRecord):
             await asyncio.sleep(self.interval)
 
 class AIOTCloud():
-    def __init__(self, device_id=None, thing_id=None, url="mqtts-sa.iot.oniudra.cc", port=8883, ssl_params=None):
+    def __init__(self, device_id, thing_id, ssl_params, server="mqtts-sa.iot.oniudra.cc", port=8883):
         self.aws = [self.mqtt_task(), ]
         self.topic_in  = b"/a/t/" + thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + thing_id + b"/e/o"
@@ -58,8 +58,7 @@ class AIOTCloud():
         self.records = {}
         self.senmlpack = SenmlPack('', self.senml_generic_callback)
 
-        self.mqtt_client = MQTTClient(device_id, url, port, ssl=True, ssl_params=ssl_params)
-        self.mqtt_client.set_callback(self.mqtt_callback)
+        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, callback=self.mqtt_callback)
 
     def __getitem__(self, key):
         return self.records[key].value
