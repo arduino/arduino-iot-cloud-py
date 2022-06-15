@@ -1,7 +1,8 @@
 # python-aiotcloud
-AIoT cloud implementation in Python
+AIoT cloud implementation in Python.
 
-## Testing with SoftHSM and p11tool:
+## Using SoftHSM and p11tool:
+If a crypto device is not available, the AIoT cloud can be tested on Linux using SoftHSM.
 
 ### Create softhsm token (use first available slot, in this case 0)
 ```bash
@@ -33,16 +34,22 @@ Object 1:
 	ID: 67:a2:ad:13:53:b1:ce:4f:0e:cb:74:34:b8:c6:1c:f3:33:ea:67:31
 ```
 
-### Run example:
-```bash
-python umqtt_example.py
-```
-Note: you need to override `ENGINE_PATH` and `MODULE_PATH` and provide `ca-root.pem` or set `CA_PATH` to `None`, in `umqtt_example.py`
-
-### Delete Token:
+### Deleting Token:
+When done with the token it can be deleted with the following command:
 
 ```bash
 softhsm2-util --delete-token --token "arduino"
+```
+
+## Running the example:
+
+* Set `KEY_URI`, `CERT_URI`, `DEVICE_ID`, `THING_ID` and `CA_PATH` variables in `aiotcloud_example.py`.
+* Provide a CA certificate in a `ca-root.pem` file or set `CA_PATH` to `None` if it's not used.
+* Override the default `pin` and provide `ENGINE_PATH` and `MODULE_PATH` in `ssl_params` if needed.
+* Clone this repository and run the following:
+
+```bash
+python aiotcloud_example.py
 ```
 
 ### Useful links:
