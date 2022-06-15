@@ -27,6 +27,9 @@ from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
 from aiotcloud.umqtt import MQTTClient
 
+def _timestamp():
+    return int((time.time() + 0.5) * 1000)
+
 class AIOTProperty(SenmlRecord):
     def __init__(self, aiot, name, value, senml_callback, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
@@ -35,6 +38,7 @@ class AIOTProperty(SenmlRecord):
         self.interval = interval
         self.updated = False
         self.dtype = type(value)
+        self.timestamp = _timestamp()
         super().__init__(name, value=value, callback=senml_callback)
 
     def __setattr__(self, key, value):
@@ -46,7 +50,8 @@ class AIOTProperty(SenmlRecord):
                 raise TypeError("Invalid data type, expected {}".format(self.dtype))
             else:
                 self.updated = True
-                logging.debug("task: '{}' updated: '{}'".format(self.name, value))
+                self.timestamp = _timestamp()
+                logging.debug("task: '{}' updated: '{}' timestamp: '{}'".format(self.name, value, self.timestamp))
         super().__setattr__(key, value)
 
     async def run(self):
