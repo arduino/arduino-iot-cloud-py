@@ -30,7 +30,7 @@ _cert = None
 ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
 MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
 
-def ussl_init(pin, certfile, keyfile, engine_path, module_path):
+def init(pin, certfile, keyfile, engine_path, module_path):
     global _key, _cert
     Engine.load_dynamic_engine("pkcs11", engine_path)
     pkcs11 = Engine.Engine("pkcs11")
@@ -42,7 +42,7 @@ def ussl_init(pin, certfile, keyfile, engine_path, module_path):
 
 def wrap_socket(sock_in, pin, certfile, keyfile, ca_certs=None, ciphers=None, engine_path=ENGINE_PATH, module_path=MODULE_PATH):
     if _key is None or _cert is None:
-        ussl_init(pin, certfile, keyfile, engine_path, module_path)
+        init(pin, certfile, keyfile, engine_path, module_path)
 
     # Create SSL context
     ctx = SSL.Context('tls')
