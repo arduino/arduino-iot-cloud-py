@@ -26,48 +26,63 @@ import logging
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
 from aiotcloud.umqtt import MQTTClient
+from asyncio import CancelledError
+
+try:
+    from asyncio import InvalidStateError
+except ImportError:
+    # MicroPython doesn't have this exception
+    class InvalidStateError(Exception):
+        pass
 
 def _timestamp():
     return int((time.time() + 0.5) * 1000)
 
 class AIOTProperty(SenmlRecord):
-    def __init__(self, aiot, name, value, senml_callback, on_read=None, on_write=None, interval=None):
+    def __init__(self, aiot, name, value, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
         self.on_read = on_read
         self.on_write = on_write
         self.interval = interval
         self.updated = False
+        self.call_on_write = False
         self.dtype = type(value)
         self.timestamp = _timestamp()
-        super().__init__(name, value=value, callback=senml_callback)
+        super().__init__(name, value=value, callback=self.senml_callback)
 
     def __setattr__(self, key, value):
         if (key == "value" and value is not None):
             if (self.dtype is type(None)):
                 self.dtype = type(value)
-                logging.debug("task: '{}' shadow: '{}'".format(self.name, value))
             elif not isinstance(value, self.dtype):
                 raise TypeError("Invalid data type, expected {}".format(self.dtype))
             else:
                 self.updated = True
-                self.timestamp = _timestamp()
-                logging.debug("task: '{}' updated: '{}' timestamp: '{}'".format(self.name, value, self.timestamp))
+            self.timestamp = _timestamp()
+            logging.debug("task: '{}' updated: '{}' timestamp: '{}'".format(self.name, value, self.timestamp))
         super().__setattr__(key, value)
+
+    def senml_callback(self, record, **kwargs):
+        # Updated from the cloud, the value shouldn't be sent back.
+        self.updated = False
+        self.call_on_write = True
 
     async def run(self):
         while True:
-            self.value = self.on_read(self.aiot)
+            if (self.on_read is not None):
+                self.value = self.on_read(self.aiot)
+            if (self.on_write is not None and self.call_on_write):
+                self.call_on_write = False
+                self.on_write(self.aiot, self.value)
             await asyncio.sleep(self.interval)
 
 class AIOTCloud():
     def __init__(self, device_id, thing_id, ssl_params, server="mqtts-sa.iot.oniudra.cc", port=8883):
-        self.aws = [self.mqtt_task(), ]
+        self.records = {}
         self.topic_in  = b"/a/t/" + thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + thing_id + b"/e/o"
-
-        self.records = {}
-        self.senmlpack = SenmlPack('', self.senml_generic_callback)
-
+        self.senmlpack = SenmlPack('', self.senml_callback)
+        self.tasks = [asyncio.create_task(self.mqtt_task(), name="mqtt"), ]
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, callback=self.mqtt_callback)
 
     def __getitem__(self, key):
@@ -76,19 +91,17 @@ class AIOTCloud():
     def __setitem__(self, key, value):
         self.records[key].value = value
 
-    def register(self, name, value, on_read=None, on_write=None, interval=None):
-        record = AIOTProperty(self, name, value, self.senml_callback, on_read, on_write, interval)
+    def register(self, name, value, interval=1.0, on_read=None, on_write=None):
+        if (value is None and on_read is not None):
+            value = on_read(self)
+        record = AIOTProperty(self, name, value, on_read, on_write, interval)
         self.records[name] = record
-        if (on_read is not None and interval is not None):
-            self.aws.append(record.run())
+        if (on_read is not None or on_write is not None):
+            self.tasks.append(asyncio.create_task(record.run(), name=record.name))
             logging.debug("task: '{}' created.".format(name))
 
-    def senml_generic_callback(self, record, **kwargs):
-        logging.info("Unkown record name: {} value: {}".format(record.name, record.value))
-
     def senml_callback(self, record, **kwargs):
-        if (record.on_write is not None):
-            record.on_write(self, record.value)
+        logging.info("Unkown record: {} value: {}".format(record.name, record.value))
 
     def mqtt_callback(self, topic, msg):
         logging.debug("mqtt topic: '{}' message: '{}'".format(topic, msg))
@@ -113,7 +126,7 @@ class AIOTCloud():
                 logging.debug("Pushing records to AIoT Cloud:")
                 if (self.debug):
                     for record in self.senmlpack:
-                        logging.info("    record name: {} value: {}".format(record.name, record.value))
+                        logging.info("  ==> record name: {} value: {}".format(record.name, record.value))
                 self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor())
 
             self.senmlpack.clear()
@@ -121,8 +134,10 @@ class AIOTCloud():
  
     async def run(self, user_main=None, debug=False):
         self.debug = debug
+
         if (user_main is not None):
-            self.aws.append(user_main)
+            # If user code is provided, append to tasks list.
+            self.tasks.append(asyncio.create_task(user_main, name="user code"))
 
         logging.info("Connecting to AIoT Cloud.")
         self.mqtt_client.connect()
@@ -130,5 +145,17 @@ class AIOTCloud():
         logging.info("Subscribing to thing topic.")
         self.mqtt_client.subscribe(self.topic_in)
 
-        await asyncio.gather(*self.aws)
+        while True:
+            try:
+                await asyncio.gather(*self.tasks, return_exceptions=False)
+                logging.info("All tasks finished!")
+                break
+            except Exception as e: pass
 
+            for task in self.tasks:
+                try:
+                    if task.done():
+                        self.tasks.remove(task)
+                    logging.error("Removed task: '{}'. Raised exception: '{}'."
+                            .format(task.get_name(), task.exception()))
+                except (CancelledError, InvalidStateError) as e: pass

@@ -50,9 +50,9 @@ async def main():
     aiot = AIOTCloud(device_id=DEVICE_ID, thing_id=THING_ID, ssl_params = {
             "pin":"1234", "keyfile":KEY_URI, "certfile":CERT_URI, "ca_certs":CA_PATH})
     aiot.register("led", value=False)
-    aiot.register("sw1", value=False, on_write=on_switch_changed)
-    aiot.register("pot", value=0, on_read=lambda x:random.randint(0, 1024), interval=1.0)
-    aiot.register("clk", value="", on_read=lambda x:time.strftime('%X'), interval=1.0)
+    aiot.register("sw1", value=False, on_write=on_switch_changed, interval=0.250)
+    aiot.register("pot", value=None, on_read=lambda x:random.randint(0, 1024), interval=1.0)
+    aiot.register("clk", value=None, on_read=lambda x:time.strftime('%X'), interval=1.0)
     aiot.register("user", value="")
     await aiot.run(user_main(aiot))
 
