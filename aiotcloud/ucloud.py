@@ -37,7 +37,10 @@ except ImportError:
     class InvalidStateError(Exception):
         pass
 
-def _timestamp():
+def timestamp_s():
+    return int((time.time() + 0.5))
+
+def timestamp_ms():
     return int((time.time() + 0.5) * 1000)
 
 class AIOTProperty(SenmlRecord):
@@ -49,7 +52,7 @@ class AIOTProperty(SenmlRecord):
         self.updated = False
         self.call_on_write = False
         self.dtype = type(value)
-        self.timestamp = _timestamp()
+        self.timestamp = timestamp_ms()
         super().__init__(name, value=value, callback=self.senml_callback)
 
     def __setattr__(self, key, value):
@@ -60,7 +63,7 @@ class AIOTProperty(SenmlRecord):
                 raise TypeError(f"Invalid data type, expected {self.dtype}")
             else:
                 self.updated = True
-            self.timestamp = _timestamp()
+            self.timestamp = timestamp_ms()
             logging.debug(f"task: {self.name} updated: {value} timestamp: {self.timestamp}")
         super().__setattr__(key, value)
 
@@ -79,13 +82,15 @@ class AIOTProperty(SenmlRecord):
             await asyncio.sleep(self.interval)
 
 class AIOTCloud():
-    def __init__(self, device_id, thing_id, ssl_params, server="mqtts-sa.iot.oniudra.cc", port=8883):
+    def __init__(self, device_id, thing_id, ssl_params, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=60):
         self.records = {}
         self.topic_in  = b"/a/t/" + thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + thing_id + b"/e/o"
+        self.keepalive = keepalive
+        self.last_ping = timestamp_s()
         self.senmlpack = SenmlPack("", self.senml_callback)
         self.tasks = [asyncio.create_task(self.mqtt_task(), name="mqtt"), ]
-        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, callback=self.mqtt_callback)
+        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=self.keepalive, callback=self.mqtt_callback)
 
     def __getitem__(self, key):
         return self.records[key].value
@@ -130,6 +135,10 @@ class AIOTCloud():
                     for record in self.senmlpack:
                         logging.info(f"  ==> record: {record.name} value: {record.value}")
                 self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor())
+            elif ((timestamp_s() - self.last_ping) > self.keepalive):
+                self.mqtt_client.ping()
+                self.last_ping = timestamp_s()
+                logging.debug("No records to push, sent a ping request.")
 
             self.senmlpack.clear()
             await asyncio.sleep(interval)
