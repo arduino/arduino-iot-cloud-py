@@ -19,6 +19,8 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+#
+# This file is part of the Python Arduino IoT Cloud.
 
 import time
 import asyncio
@@ -26,12 +28,14 @@ import random
 import logging
 from aiotcloud import AIOTCloud
 
-KEY_URI = "pkcs11:token=arduino"
+KEY_URI  = "pkcs11:token=arduino"
 CERT_URI = "pkcs11:token=arduino"
-CA_PATH = "ca-root.pem"
+CA_PATH  = "ca-root.pem"
 
 DEVICE_ID = b"25deeda1-3fda-4d06-9c3c-dd31be382cd2"
 THING_ID  = b"d2a51288-9cd3-43e3-b35b-08689cfe84f3"
+
+DEBUG_ENABLED = True
 
 async def user_main(aiot):
     '''
@@ -40,6 +44,7 @@ async def user_main(aiot):
     execution periodically by calling asyncio.sleep(seconds).
     '''
     while True:
+        print(x)
         aiot["user"] = random.choice(["=^.. ^=", "=^ ..^="])
         await asyncio.sleep(0.5)
 
@@ -54,11 +59,11 @@ async def main():
     aiot.register("pot", value=None, on_read=lambda x:random.randint(0, 1024), interval=1.0)
     aiot.register("clk", value=None, on_read=lambda x:time.strftime('%X'), interval=1.0)
     aiot.register("user", value="")
-    await aiot.run(user_main(aiot))
+    await aiot.run(user_main(aiot), debug=DEBUG_ENABLED)
 
 if __name__ == '__main__':
     logging.basicConfig(
-            level=logging.DEBUG,
             datefmt="%H:%M:%S",
-            format="%(asctime)s.%(msecs)03d %(message)s")
+            format="%(asctime)s.%(msecs)03d %(message)s",
+            level=logging.DEBUG if DEBUG_ENABLED else logging.INFO)
     asyncio.run(main())
