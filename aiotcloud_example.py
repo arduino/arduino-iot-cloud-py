@@ -38,13 +38,12 @@ THING_ID  = b"d2a51288-9cd3-43e3-b35b-08689cfe84f3"
 DEBUG_ENABLED = True
 
 async def user_main(aiot):
-    '''
+    """
     Add your code here.
     NOTE: To allow other tasks to run, this function must yield
     execution periodically by calling asyncio.sleep(seconds).
-    '''
+    """
     while True:
-        print(x)
         aiot["user"] = random.choice(["=^.. ^=", "=^ ..^="])
         await asyncio.sleep(0.5)
 
@@ -61,7 +60,7 @@ async def main():
     aiot.register("user", value="")
     await aiot.run(user_main(aiot), debug=DEBUG_ENABLED)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(
             datefmt="%H:%M:%S",
             format="%(asctime)s.%(msecs)03d %(message)s",

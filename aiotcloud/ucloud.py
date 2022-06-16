@@ -57,11 +57,11 @@ class AIOTProperty(SenmlRecord):
             if (self.dtype is type(None)):
                 self.dtype = type(value)
             elif not isinstance(value, self.dtype):
-                raise TypeError("Invalid data type, expected {}".format(self.dtype))
+                raise TypeError(f"Invalid data type, expected {self.dtype}")
             else:
                 self.updated = True
             self.timestamp = _timestamp()
-            logging.debug("task: '{}' updated: '{}' timestamp: '{}'".format(self.name, value, self.timestamp))
+            logging.debug(f"task: {self.name} updated: {value} timestamp: {self.timestamp}")
         super().__setattr__(key, value)
 
     def senml_callback(self, record, **kwargs):
@@ -83,7 +83,7 @@ class AIOTCloud():
         self.records = {}
         self.topic_in  = b"/a/t/" + thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + thing_id + b"/e/o"
-        self.senmlpack = SenmlPack('', self.senml_callback)
+        self.senmlpack = SenmlPack("", self.senml_callback)
         self.tasks = [asyncio.create_task(self.mqtt_task(), name="mqtt"), ]
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, callback=self.mqtt_callback)
 
@@ -100,17 +100,17 @@ class AIOTCloud():
         self.records[name] = record
         if (on_read is not None or on_write is not None):
             self.tasks.append(asyncio.create_task(record.run(), name=record.name))
-            logging.debug("task: '{}' created.".format(name))
+            logging.debug(f"task: {name} created.")
 
     def senml_callback(self, record, **kwargs):
-        logging.info("Unkown record: {} value: {}".format(record.name, record.value))
+        logging.info(f"Unkown record: {record.name} value: {record.value}")
 
-    def mqtt_callback(self, topic, msg):
-        logging.debug("mqtt topic: '{}' message: '{}'".format(topic, msg))
+    def mqtt_callback(self, topic, message):
+        logging.debug("mqtt topic: {topic} message: {message}")
         for key, record in self.records.items():
             if record.on_write is not None:
                 self.senmlpack.add(record)
-        self.senmlpack.from_cbor(msg)
+        self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
     async def mqtt_task(self, interval=0.100):
@@ -128,7 +128,7 @@ class AIOTCloud():
                 logging.debug("Pushing records to AIoT Cloud:")
                 if (self.debug):
                     for record in self.senmlpack:
-                        logging.info("  ==> record name: {} value: {}".format(record.name, record.value))
+                        logging.info(f"  ==> record: {record.name} value: {record.value}")
                 self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor())
 
             self.senmlpack.clear()
@@ -158,6 +158,5 @@ class AIOTCloud():
                 try:
                     if task.done():
                         self.tasks.remove(task)
-                    logging.error("Removed task: '{}'. Raised exception: '{}'."
-                            .format(task.get_name(), task.exception()))
+                    logging.error(f"Removed task: {task.get_name()}. Raised exception: {task.exception()}.")
                 except (CancelledError, InvalidStateError) as e: pass
