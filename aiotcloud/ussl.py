@@ -1,3 +1,5 @@
+# This file is part of the Python AIoT Cloud.
+#
 # The MIT License (MIT)
 #
 # Copyright (c) 2022 Arduino SA
@@ -21,6 +23,7 @@
 # THE SOFTWARE.
 #
 # ussl module with m2crypto backend for HSM support. 
+
 from M2Crypto import Engine, m2, BIO, SSL
 
 _key = None

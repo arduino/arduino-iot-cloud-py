@@ -1,3 +1,5 @@
+# This file is part of the Python AIoT Cloud.
+#
 # The MIT License (MIT)
 #
 # Copyright (c) 2022 Arduino SA

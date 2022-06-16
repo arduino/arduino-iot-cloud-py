@@ -1,4 +1,4 @@
-# python-aiotcloud
+# Python AIoT Cloud 🐍☁️
 AIoT cloud implementation in Python.
 
 ## Using SoftHSM and p11tool:
