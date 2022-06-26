@@ -78,10 +78,17 @@ class MQTTClient:
         self.lw_retain = retain
 
     def connect(self, clean_session=True):
-        self.sock = socket.socket()
-        self.sock = wrap_socket(self.sock, **self.ssl_params)
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
-        self.sock.connect(addr)
+        try:
+            self.sock = socket.socket()
+            self.sock.connect(addr)
+            self.sock = wrap_socket(self.sock, **self.ssl_params)
+        except ENOTCONN:
+            self.sock.close()
+            self.sock = socket.socket()
+            self.sock = wrap_socket(self.sock, **self.ssl_params)
+            self.sock.connect(addr)
+
         premsg = bytearray(b"\x10\0\0\0\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
 

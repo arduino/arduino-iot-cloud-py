@@ -23,10 +23,18 @@
 # This file is part of the Python Arduino IoT Cloud.
 
 import time
-import asyncio
 import random
-import logging
+try:
+    import logging
+    import asyncio
+except ImportError:
+    import uasyncio as asyncio
+    import ulogging as logging
 from aiotcloud import AIOTCloud
+if hasattr(time, "strftime"):
+    from time import strftime
+else:
+    from ulogging.ustrftime import strftime
 
 KEY_URI  = "pkcs11:token=arduino"
 CERT_URI = "pkcs11:token=arduino"
@@ -56,7 +64,7 @@ async def main():
     aiot.register("led", value=False)
     aiot.register("sw1", value=False, on_write=on_switch_changed, interval=0.250)
     aiot.register("pot", value=None, on_read=lambda x:random.randint(0, 1024), interval=1.0)
-    aiot.register("clk", value=None, on_read=lambda x:time.strftime('%X'), interval=1.0)
+    aiot.register("clk", value=None, on_read=lambda x:strftime("%H:%M:%S", time.localtime()), interval=1.0)
     aiot.register("user", value="")
     await aiot.run(user_main(aiot), debug=DEBUG_ENABLED)
 
