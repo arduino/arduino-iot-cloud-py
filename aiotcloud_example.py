@@ -36,14 +36,12 @@ if hasattr(time, "strftime"):
 else:
     from ulogging.ustrftime import strftime
 
-KEY_URI  = "pkcs11:token=arduino"
-CERT_URI = "pkcs11:token=arduino"
-CA_PATH  = "ca-root.pem"
-
-DEVICE_ID = b"25deeda1-3fda-4d06-9c3c-dd31be382cd2"
-THING_ID  = b"d2a51288-9cd3-43e3-b35b-08689cfe84f3"
-
 DEBUG_ENABLED = True
+
+KEY_URI   = "pkcs11:token=arduino"
+CERT_URI  = "pkcs11:token=arduino"
+CA_PATH   = "ca-root.pem"
+DEVICE_ID = b"25deeda1-3fda-4d06-9c3c-dd31be382cd2"
 
 async def user_main(aiot):
     """
@@ -59,8 +57,8 @@ def on_switch_changed(aiot, value):
     aiot["led"] = value
 
 async def main():
-    aiot = AIOTCloud(device_id=DEVICE_ID, thing_id=THING_ID, ssl_params = {
-            "pin":"1234", "keyfile":KEY_URI, "certfile":CERT_URI, "ca_certs":CA_PATH})
+    aiot = AIOTCloud(device_id=DEVICE_ID,
+            ssl_params = {"pin":"1234", "keyfile":KEY_URI, "certfile":CERT_URI, "ca_certs":CA_PATH})
     aiot.register("led", value=False)
     aiot.register("sw1", value=False, on_write=on_switch_changed, interval=0.250)
     aiot.register("pot", value=None, on_read=lambda x:random.randint(0, 1024), interval=1.0)

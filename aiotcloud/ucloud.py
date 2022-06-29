@@ -90,15 +90,17 @@ class AIOTProperty(SenmlRecord):
             await asyncio.sleep(self.interval)
 
 class AIOTCloud():
-    def __init__(self, device_id, thing_id, ssl_params, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=60):
+    def __init__(self, device_id, ssl_params=None, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=10):
         self.tasks = []
         self.records = {}
-        self.topic_in  = b"/a/t/" + thing_id + b"/e/i"
-        self.topic_out = b"/a/t/" + thing_id + b"/e/o"
+        self.thing_id = None
         self.keepalive = keepalive
         self.last_ping = timestamp_s()
-        self.senmlpack = SenmlPack("", self.senml_callback)
-        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=self.keepalive, callback=self.mqtt_callback)
+        self.device_topic = b"/a/d/" + device_id + b"/e/i"
+        self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
+        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
+        # Note: this property is set by the cloud discovery protocol.
+        self.register("thing_id", value=None, on_write=self.discovery_callback)
 
     def __getitem__(self, key):
         return self.records[key].value
@@ -116,44 +118,54 @@ class AIOTCloud():
             logging.debug(f"task: {name} created.")
 
     def senml_callback(self, record, **kwargs):
-        logging.info(f"Unkown record: {record.name} value: {record.value}")
+        logging.error(f"Unkown record: {record.name} value: {record.value}")
 
     def mqtt_callback(self, topic, message):
-        logging.debug("mqtt topic: {topic} message: {message}")
+        logging.debug(f"mqtt topic: {topic[:16]}... message: {message[:16]}...")
+        self.senmlpack.clear()
         for key, record in self.records.items():
             if record.on_write is not None:
                 self.senmlpack.add(record)
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
+    def discovery_callback(self, aiot, thing_id):
+        logging.info(f"Device configured via discovery protocol.")
+        if not thing_id:
+            raise(Exception("Device is not linked to a Thing ID."))
+        self.thing_id  = bytes(thing_id, "utf-8")
+        self.topic_in  = b"/a/t/" + self.thing_id + b"/e/i"
+        self.topic_out = b"/a/t/" + self.thing_id + b"/e/o"
+        logging.info(f"Subscribing to thing topic {self.topic_in}.")
+        self.mqtt_client.subscribe(self.topic_in)
+
     async def mqtt_task(self, interval=0.100):
         while True:
-            push_updates = False
             self.mqtt_client.check_msg()
 
-            for key, record in self.records.items():
-                if (record.updated):
-                    record.updated = False
-                    push_updates = True
-                    self.senmlpack.add(record)
+            if self.thing_id is not None:
+                for key, record in self.records.items():
+                    if (record.updated):
+                        record.updated = False
+                        self.senmlpack.add(record)
 
-            if (push_updates):
-                logging.debug("Pushing records to AIoT Cloud:")
-                if (self.debug):
-                    for record in self.senmlpack:
-                        logging.debug(f"  ==> record: {record.name} value: {record.value}")
-                self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
-            elif ((timestamp_s() - self.last_ping) > self.keepalive):
-                self.mqtt_client.ping()
-                self.last_ping = timestamp_s()
-                logging.debug("No records to push, sent a ping request.")
+                if len(self.senmlpack._data):
+                    logging.debug("Pushing records to AIoT Cloud:")
+                    if (self.debug):
+                        for record in self.senmlpack:
+                            logging.debug(f"  ==> record: {record.name} value: {record.value}")
+                    self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
+                elif (self.keepalive and (timestamp_s() - self.last_ping) > self.keepalive):
+                    self.mqtt_client.ping()
+                    self.last_ping = timestamp_s()
+                    logging.debug("No records to push, sent a ping request.")
 
-            self.senmlpack.clear()
+                self.senmlpack.clear()
+
             await asyncio.sleep(interval)
  
     async def run(self, user_main=None, debug=False):
         self.debug = debug
-
         if (user_main is not None):
             # If user code is provided, append to tasks list.
             self.tasks.append(create_task(user_main, name="user code"))
@@ -163,8 +175,8 @@ class AIOTCloud():
             logging.error("Failed to connect AIoT cloud.")
             return
 
-        logging.info("Subscribing to thing topic.")
-        self.mqtt_client.subscribe(self.topic_in)
+        logging.info("Subscribing to device topic.")
+        self.mqtt_client.subscribe(self.device_topic)
 
         self.tasks.append(create_task(self.mqtt_task(), name="mqtt"))
 
@@ -182,6 +194,5 @@ class AIOTCloud():
                     if hasattr(asyncio.Task, "get_name"):
                         logging.error(f"Removed task: {task.get_name()}. Raised exception: {task.exception()}.")
                     else:
-                        logging.error(f"Removed task: {task.get_name()}. Raised exception: {task.exception()}.")
-
+                        logging.error(f"Removed task.")
                 except (CancelledError, InvalidStateError) as e: pass

@@ -138,7 +138,6 @@ class MQTTClient:
                 self._connect(clean_session)
                 return True
             except Exception as e:
-                raise(e)
                 self.sock.close()
                 logging.info(f"Connection failed {e}, retrying after {interval}s")
                 time.sleep(interval)
