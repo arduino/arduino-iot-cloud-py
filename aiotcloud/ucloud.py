@@ -159,14 +159,9 @@ class AIOTCloud():
             self.tasks.append(create_task(user_main, name="user code"))
 
         logging.info("Connecting to AIoT cloud...")
-        for i in range(0, 10):
-            try:
-                self.mqtt_client.connect()
-                break
-            except Exception as e:
-                self.mqtt_client.sock.close()
-                logging.info("Connection failed, retrying after 1s")
-                time.sleep_ms(1000)
+        if not self.mqtt_client.connect():
+            logging.error("Failed to connect AIoT cloud.")
+            return
 
         logging.info("Subscribing to thing topic.")
         self.mqtt_client.subscribe(self.topic_in)

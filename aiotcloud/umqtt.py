@@ -22,14 +22,17 @@
 #
 # Based on: https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple
 
+import time
 try:
-    import usocket as socket
-    import ustruct as struct
-    from ussl import wrap_socket
-except ImportError:
     import socket
     import struct
+    import logging
     from aiotcloud.ussl import wrap_socket
+except ImportError:
+    import usocket as socket
+    import ustruct as struct
+    import ulogging as logging
+    from ussl import wrap_socket
 
 class MQTTException(Exception):
     pass
@@ -77,17 +80,17 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
-    def connect(self, clean_session=True):
+    def _connect(self, clean_session=True):
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         try:
             self.sock = socket.socket()
-            self.sock.connect(addr)
             self.sock = wrap_socket(self.sock, **self.ssl_params)
-        except ENOTCONN:
+            self.sock.connect(addr)
+        except:
             self.sock.close()
             self.sock = socket.socket()
-            self.sock = wrap_socket(self.sock, **self.ssl_params)
             self.sock.connect(addr)
+            self.sock = wrap_socket(self.sock, **self.ssl_params)
 
         premsg = bytearray(b"\x10\0\0\0\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
@@ -128,6 +131,18 @@ class MQTTClient:
         if resp[3] != 0:
             raise MQTTException(resp[3])
         return resp[2] & 1
+
+    def connect(self, retry=10, interval=1.0, clean_session=True):
+        for i in range(0, retry):
+            try:
+                self._connect(clean_session)
+                return True
+            except Exception as e:
+                raise(e)
+                self.sock.close()
+                logging.info(f"Connection failed {e}, retrying after {interval}s")
+                time.sleep(interval)
+        return False
 
     def disconnect(self):
         self.sock.write(b"\xe0\0")
