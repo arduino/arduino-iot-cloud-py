@@ -34,6 +34,7 @@ try:
 except ImportError:
     import ulogging as logging
     import uasyncio as asyncio
+    from aiotcloud import ntptime
     from uasyncio.core import CancelledError
     # MicroPython doesn't have this exception
     class InvalidStateError(Exception):
@@ -95,6 +96,7 @@ class AIOTCloud():
         self.records = {}
         self.thing_id = None
         self.keepalive = keepalive
+        self.update_system_time()
         self.last_ping = timestamp_s()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
@@ -107,6 +109,16 @@ class AIOTCloud():
 
     def __setitem__(self, key, value):
         self.records[key].value = value
+
+    def update_system_time(self):
+        try:
+            from aiotcloud import ntptime
+            ntptime.settime()   # Update RTC from NTP.
+            logging.info("RTC time set from NTP.")
+        except ImportError:
+            pass
+        except Exception as e:
+            logging.error(f"Failed to set RTC time from NTP: {e}.")
 
     def register(self, name, value, interval=1.0, on_read=None, on_write=None):
         if (value is None and on_read is not None):
