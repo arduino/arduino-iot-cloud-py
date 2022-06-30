@@ -40,11 +40,8 @@ except ImportError:
     class InvalidStateError(Exception):
         pass
 
-def timestamp_s():
-    return int((time.time() + 0.5))
-
-def timestamp_ms():
-    return int((time.time() + 0.5) * 1000)
+def timestamp():
+    return int(time.time())
 
 class AIOTProperty(SenmlRecord):
     def __init__(self, aiot, name, value, on_read=None, on_write=None, interval=None):
@@ -55,7 +52,7 @@ class AIOTProperty(SenmlRecord):
         self.updated = False
         self.call_on_write = False
         self.dtype = type(value)
-        self.timestamp = timestamp_ms()
+        self.timestamp = timestamp()
         super().__init__(name, value=value, callback=self.senml_callback)
 
     def __setattr__(self, key, value):
@@ -66,7 +63,7 @@ class AIOTProperty(SenmlRecord):
                 raise TypeError(f"Invalid data type, expected {self.dtype}")
             else:
                 self.updated = True
-            self.timestamp = timestamp_ms()
+            self.timestamp = timestamp()
             logging.debug(f"task: {self.name} updated: {value} timestamp: {self.timestamp}")
         super().__setattr__(key, value)
 
@@ -91,7 +88,7 @@ class AIOTCloud():
         self.thing_id = None
         self.keepalive = keepalive
         self.update_systime()
-        self.last_ping = timestamp_s()
+        self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
@@ -167,9 +164,9 @@ class AIOTCloud():
                         for record in self.senmlpack:
                             logging.debug(f"  ==> record: {record.name} value: {record.value}")
                     self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
-                elif (self.keepalive and (timestamp_s() - self.last_ping) > self.keepalive):
+                elif (self.keepalive and (timestamp() - self.last_ping) > self.keepalive):
                     self.mqtt_client.ping()
-                    self.last_ping = timestamp_s()
+                    self.last_ping = timestamp()
                     logging.debug("No records to push, sent a ping request.")
 
                 self.senmlpack.clear()
