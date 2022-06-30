@@ -46,12 +46,6 @@ def timestamp_s():
 def timestamp_ms():
     return int((time.time() + 0.5) * 1000)
 
-def create_task(coro, name=None):
-    if hasattr(asyncio.Task, "get_name"):
-        return asyncio.create_task(coro, name=name)
-    else:
-        return asyncio.create_task(coro)
-
 class AIOTProperty(SenmlRecord):
     def __init__(self, aiot, name, value, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
@@ -96,7 +90,7 @@ class AIOTCloud():
         self.records = {}
         self.thing_id = None
         self.keepalive = keepalive
-        self.update_system_time()
+        self.update_systime()
         self.last_ping = timestamp_s()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
@@ -110,7 +104,7 @@ class AIOTCloud():
     def __setitem__(self, key, value):
         self.records[key].value = value
 
-    def update_system_time(self):
+    def update_systime(self):
         try:
             from aiotcloud import ntptime
             ntptime.settime()   # Update RTC from NTP.
@@ -120,14 +114,20 @@ class AIOTCloud():
         except Exception as e:
             logging.error(f"Failed to set RTC time from NTP: {e}.")
 
+    def create_new_task(self, coro, name=None):
+        if hasattr(asyncio.Task, "get_name"):
+            self.tasks.append(asyncio.create_task(coro, name=name))
+        else:
+            self.tasks.append(asyncio.create_task(coro))
+        logging.debug(f"task: {name} created.")
+
     def register(self, name, value, interval=1.0, on_read=None, on_write=None):
         if (value is None and on_read is not None):
             value = on_read(self)
         record = AIOTProperty(self, name, value, on_read, on_write, interval)
         self.records[name] = record
         if (on_read is not None or on_write is not None):
-            self.tasks.append(create_task(record.run(), name=record.name))
-            logging.debug(f"task: {name} created.")
+            self.create_new_task(record.run(), name=record.name)
 
     def senml_callback(self, record, **kwargs):
         logging.error(f"Unkown record: {record.name} value: {record.value}")
@@ -180,7 +180,7 @@ class AIOTCloud():
         self.debug = debug
         if (user_main is not None):
             # If user code is provided, append to tasks list.
-            self.tasks.append(create_task(user_main, name="user code"))
+            self.create_new_task(user_main, name="user code")
 
         logging.info("Connecting to AIoT cloud...")
         if not self.mqtt_client.connect():
@@ -189,8 +189,7 @@ class AIOTCloud():
 
         logging.info("Subscribing to device topic.")
         self.mqtt_client.subscribe(self.device_topic)
-
-        self.tasks.append(create_task(self.mqtt_task(), name="mqtt"))
+        self.create_new_task(self.mqtt_task(), name="mqtt")
 
         while True:
             try:
