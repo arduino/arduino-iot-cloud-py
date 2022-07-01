@@ -62,13 +62,14 @@ openssl x509 -in cert.pem -out cert.der -outform DER
 
 #### Load key and certificate from filesystem storage
 ```python
-KEY_URI  = "key.der"
-CERT_URI = "cert.der"
+KEY_PATH  = "key.der"
+CERT_PATH = "cert.der"
+....
 
 async def main():
-    with open(KEY_URI, "rb") as fin: key = fin.read()
-    with open(CERT_URI, "rb") as fin: cert = fin.read()
-    aiot = AIOTCloud(device_id=DEVICE_ID, thing_id=THING_ID, keepalive=10, ssl_params = {"key":key, "cert":cert})
+    with open(KEY_PATH, "rb") as fin: key = fin.read()
+    with open(CERT_PATH, "rb") as fin: cert = fin.read()
+    aiot = AIOTCloud(device_id=DEVICE_ID, keepalive=10, ssl_params = {"key":key, "cert":cert})
     ....
 ```
 
