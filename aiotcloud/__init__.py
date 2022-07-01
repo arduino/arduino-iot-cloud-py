@@ -22,4 +22,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 from .ucloud import AIOTCloud
-from .ucloud import AIOTProperty
+from .ucloud import AIOTRecord

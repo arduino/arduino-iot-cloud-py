@@ -43,7 +43,7 @@ except ImportError:
 def timestamp():
     return int(time.time())
 
-class AIOTProperty(SenmlRecord):
+class AIOTRecord(SenmlRecord):
     def __init__(self, aiot, name, value, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
         self.on_read = on_read
@@ -55,8 +55,8 @@ class AIOTProperty(SenmlRecord):
         self.timestamp = timestamp()
         super().__init__(name, value=value, callback=self.senml_callback)
 
-    def __setattr__(self, key, value):
-        if (key == "_value" and value is not None):
+    def _check_value_type(self, value):
+        if (value is not None):
             if (self.dtype is type(None)):
                 self.dtype = type(value)
             elif not isinstance(value, self.dtype):
@@ -65,7 +65,6 @@ class AIOTProperty(SenmlRecord):
                 self.updated = True
             self.timestamp = timestamp()
             logging.debug(f"task: {self.name} updated: {value} timestamp: {self.timestamp}")
-        super().__setattr__(key, value)
 
     def senml_callback(self, record, **kwargs):
         # Updated from the cloud, the value shouldn't be sent back.
@@ -121,7 +120,7 @@ class AIOTCloud():
     def register(self, name, value, interval=1.0, on_read=None, on_write=None):
         if (value is None and on_read is not None):
             value = on_read(self)
-        record = AIOTProperty(self, name, value, on_read, on_write, interval)
+        record = AIOTRecord(self, name, value, on_read, on_write, interval)
         self.records[name] = record
         if (on_read is not None or on_write is not None):
             self.create_new_task(record.run(), name=record.name)
