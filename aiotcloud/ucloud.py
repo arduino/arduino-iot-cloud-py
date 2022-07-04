@@ -59,6 +59,7 @@ class AIOTRecord(SenmlRecord):
         if (value is not None):
             if (self.dtype is type(None)):
                 self.dtype = type(value)
+                logging.debug(f"task: {self.name} initialized from the cloud.")
             elif not isinstance(value, self.dtype):
                 raise TypeError(f"Invalid data type, expected {self.dtype}")
             else:
@@ -91,7 +92,7 @@ class AIOTCloud():
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
-        # Note: this property is set by the cloud discovery protocol.
+        # Note: this record is set by the cloud discovery protocol.
         self.register("thing_id", value=None, on_write=self.discovery_callback)
 
     def __getitem__(self, key):
@@ -103,7 +104,7 @@ class AIOTCloud():
     def update_systime(self):
         try:
             from aiotcloud import ntptime
-            ntptime.settime()   # Update RTC from NTP.
+            ntptime.settime()
             logging.info("RTC time set from NTP.")
         except ImportError:
             pass
@@ -118,24 +119,19 @@ class AIOTCloud():
         logging.debug(f"task: {name} created.")
 
     def register(self, name, value, interval=1.0, on_read=None, on_write=None):
-        if (value is None and on_read is not None):
+        if value is None and on_read is not None:
+            # Periodic task, and has an on_read function.
             value = on_read(self)
+        elif value is None and "r:m" not in self.records:
+            # This task will be initialized from cloud.
+            self.register("r:m", value="getLastValues")
         record = AIOTRecord(self, name, value, on_read, on_write, interval)
         self.records[name] = record
         if (on_read is not None or on_write is not None):
             self.create_new_task(record.run(), name=record.name)
 
     def senml_callback(self, record, **kwargs):
-        logging.error(f"Unkown record: {record.name} value: {record.value}")
-
-    def mqtt_callback(self, topic, message):
-        logging.debug(f"mqtt topic: {topic[:16]}... message: {message[:16]}...")
-        self.senmlpack.clear()
-        for key, record in self.records.items():
-            if record.on_write is not None:
-                self.senmlpack.add(record)
-        self.senmlpack.from_cbor(message)
-        self.senmlpack.clear()
+        logging.debug(f"Unkown record: {record.name} value: {record.value}")
 
     def discovery_callback(self, aiot, thing_id):
         logging.info(f"Device configured via discovery protocol.")
@@ -144,14 +140,34 @@ class AIOTCloud():
         self.thing_id  = bytes(thing_id, "utf-8")
         self.topic_in  = b"/a/t/" + self.thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + self.thing_id + b"/e/o"
+
+        shadow_in = b"/a/t/" + self.thing_id + b"/shadow/i"
+        shadow_out= b"/a/t/" + self.thing_id + b"/shadow/o"
+
         logging.info(f"Subscribing to thing topic {self.topic_in}.")
         self.mqtt_client.subscribe(self.topic_in)
+
+        lastval_record = self.records.pop("r:m", None)
+        if lastval_record is not None:
+            self.senmlpack.add(lastval_record)
+            logging.info(f"Subscribing to shadow topic {shadow_in}.")
+            self.mqtt_client.subscribe(shadow_in)
+            self.mqtt_client.publish(shadow_out, self.senmlpack.to_cbor(), qos=True)
+
+    def mqtt_callback(self, topic, message):
+        logging.debug(f"mqtt topic: {topic[-8:]}.. message: ...{message[:16]}")
+        self.senmlpack.clear()
+        for key, record in self.records.items():
+            if record.value is None or (record.on_write is not None and b"shadow" not in topic):
+                self.senmlpack.add(record)
+        self.senmlpack.from_cbor(message)
+        self.senmlpack.clear()
 
     async def mqtt_task(self, interval=0.100):
         while True:
             self.mqtt_client.check_msg()
-
             if self.thing_id is not None:
+                self.senmlpack.clear()
                 for key, record in self.records.items():
                     if (record.updated):
                         record.updated = False
@@ -167,9 +183,6 @@ class AIOTCloud():
                     self.mqtt_client.ping()
                     self.last_ping = timestamp()
                     logging.debug("No records to push, sent a ping request.")
-
-                self.senmlpack.clear()
-
             await asyncio.sleep(interval)
  
     async def run(self, user_main=None, debug=False):

@@ -54,15 +54,29 @@ async def user_main(aiot):
         await asyncio.sleep(0.5)
 
 def on_switch_changed(aiot, value):
+    """
+    This is a write callback for the switch, which toggles
+    the LED variable. The LED variable can be accessed via
+    the aiot cloud object passed in the first argument.
+    """
+    if value and not hasattr(on_switch_changed, "init"):
+        on_switch_changed.init=True
+        logging.info(f"Someone left the lights on!")
     aiot["led"] = value
 
 async def main():
     aiot = AIOTCloud(device_id=DEVICE_ID,
             ssl_params = {"pin":"1234", "keyfile":KEY_URI, "certfile":CERT_URI, "ca_certs":CA_PATH})
-    aiot.register("led", value=False)
-    aiot.register("sw1", value=False, on_write=on_switch_changed, interval=0.250)
+    # This variable is initialized with its last known value in the cloud.
+    aiot.register("sw1", value=None, on_write=on_switch_changed, interval=0.250)
+    # This variable is initialized with its last known value in the cloud,
+    # and gets updated manually from the switch on_write_change callback.
+    aiot.register("led", value=None)
+    # This is a periodic variable that gets updated every 1 second.
     aiot.register("pot", value=None, on_read=lambda x:random.randint(0, 1024), interval=1.0)
+    # This is a periodic variable that gets updated every 1 second.
     aiot.register("clk", value=None, on_read=lambda x:strftime("%H:%M:%S", time.localtime()), interval=1.0)
+    # This variable is updated manually from user_main.
     aiot.register("user", value="")
     await aiot.run(user_main(aiot), debug=DEBUG_ENABLED)
 
