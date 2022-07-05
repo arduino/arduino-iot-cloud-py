@@ -43,42 +43,85 @@ except ImportError:
 def timestamp():
     return int(time.time())
 
-class AIOTRecord(SenmlRecord):
+class AIOTObject(SenmlRecord):
     def __init__(self, aiot, name, value, on_read=None, on_write=None, interval=None):
         self.aiot = aiot
         self.on_read = on_read
         self.on_write = on_write
         self.interval = interval
         self.updated = False
-        self.call_on_write = False
+        self.on_write_scheduled = False
         self.dtype = type(value)
         self.timestamp = timestamp()
         super().__init__(name, value=value, callback=self.senml_callback)
 
-    def _check_value_type(self, value):
+    def __repr__(self):
+        return f"{self.value}"
+
+    def __contains__(self, key):
+        return key in self.value
+
+    def __getitem__(self, key):
+        return self.value[key].value
+
+    def __setitem__(self, key, value):
+        if self._value is None:
+            self._value = {}
+        if key in self.value:
+            self.value[key].value = value
+        else:
+            self.value[key] = AIOTObject(self.aiot, f"{self.name}:{key}", value)
+        self.updated = True
+
+    @SenmlRecord._parent.setter
+    def _parent(self, value):
+        self.__parent = value
+        if isinstance(self.value, dict):
+            for key, record in self.value.items():
+                record._parent = value
+
+    @SenmlRecord.value.setter
+    def value(self, value):
         if (value is not None):
             if (self.dtype is type(None)):
                 self.dtype = type(value)
                 logging.debug(f"task: {self.name} initialized from the cloud.")
             elif not isinstance(value, self.dtype):
-                raise TypeError(f"Invalid data type, expected {self.dtype}")
+                raise TypeError(f"task: {self.name} invalid data type. Expected {self.dtype} not {type(value)}")
             else:
                 self.updated = True
             self.timestamp = timestamp()
             logging.debug(f"task: {self.name} updated: {value} timestamp: {self.timestamp}")
+        if isinstance(value, dict):
+            for key, record in value.items():
+                self[key] = record
+        else:
+            self._value = value
+
+    def _build_rec_dict(self, naming_map, appendTo):
+        if isinstance(self.value, dict):
+            for key, record in self.value.items():
+                record._build_rec_dict(naming_map, appendTo)
+        else:
+            super()._build_rec_dict(naming_map, appendTo)
 
     def senml_callback(self, record, **kwargs):
-        # Updated from the cloud, the value shouldn't be sent back.
+        """
+        This is called after the record is updated from the senml pack.
+        Sets updated flag to False, to avoid sending the same value back,
+        and schedules on_write callback on the next run.
+        """
         self.updated = False
-        self.call_on_write = True
+        self.on_write_scheduled = True
 
     async def run(self):
         while True:
             if (self.on_read is not None):
                 self.value = self.on_read(self.aiot)
-            if (self.on_write is not None and self.call_on_write):
-                self.call_on_write = False
-                self.on_write(self.aiot, self.value)
+            if (self.on_write is not None and self.on_write_scheduled):
+                self.on_write_scheduled = False
+                self.on_write(self.aiot, self.value if not isinstance(self.value, dict)
+                        else {k: v.value for (k, v) in self.value.items()})
             await asyncio.sleep(self.interval)
 
 class AIOTCloud():
@@ -90,13 +133,13 @@ class AIOTCloud():
         self.update_systime()
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
-        self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_callback)
+        self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_generic_callback)
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
-        # Note: this record is set by the cloud discovery protocol.
+        # Note: this object is set by the cloud discovery protocol.
         self.register("thing_id", value=None, on_write=self.discovery_callback)
 
     def __getitem__(self, key):
-        return self.records[key].value
+        return self.records[key]
 
     def __setitem__(self, key, value):
         self.records[key].value = value
@@ -123,15 +166,29 @@ class AIOTCloud():
             # Periodic task, and has an on_read function.
             value = on_read(self)
         elif value is None and "r:m" not in self.records:
-            # This task will be initialized from cloud.
+            # This task initializes objects from the cloud.
             self.register("r:m", value="getLastValues")
-        record = AIOTRecord(self, name, value, on_read, on_write, interval)
+        record = AIOTObject(self, name, value, on_read, on_write, interval)
         self.records[name] = record
         if (on_read is not None or on_write is not None):
             self.create_new_task(record.run(), name=record.name)
 
-    def senml_callback(self, record, **kwargs):
-        logging.debug(f"Unkown record: {record.name} value: {record.value}")
+    def senml_generic_callback(self, record, **kwargs):
+        """
+        This callback catches all unknown/umatched records, and handles the initialization
+        of composite types from the cloud. Cloud-initialized composite objects are handled
+        in this callback because they have unknown sub-records.
+        """
+        name, subrec = record.name.split(":") if ":" in record.name else [record.name, ""]
+        if rec := self.records.get(name, None):
+            if rec.value is None or (subrec and subrec not in rec):
+                rec[subrec] = None # This causes the right log message to be printed.
+                rec[subrec] = record.value
+                rec.updated = False
+            else:
+                logging.debug(f"Ignoring cloud initialization for record: {record.name}")
+        else:
+            logging.debug(f"Unkown record: {record.name} value: {record.value}")
 
     def discovery_callback(self, aiot, thing_id):
         logging.info(f"Device configured via discovery protocol.")
@@ -147,19 +204,21 @@ class AIOTCloud():
         logging.info(f"Subscribing to thing topic {self.topic_in}.")
         self.mqtt_client.subscribe(self.topic_in)
 
-        lastval_record = self.records.pop("r:m", None)
-        if lastval_record is not None:
+        if lastval_record := self.records.pop("r:m", None):
             self.senmlpack.add(lastval_record)
             logging.info(f"Subscribing to shadow topic {shadow_in}.")
             self.mqtt_client.subscribe(shadow_in)
             self.mqtt_client.publish(shadow_out, self.senmlpack.to_cbor(), qos=True)
 
     def mqtt_callback(self, topic, message):
-        logging.debug(f"mqtt topic: {topic[-8:]}.. message: ...{message[:16]}")
+        logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
         self.senmlpack.clear()
         for key, record in self.records.items():
             if record.value is None or (record.on_write is not None and b"shadow" not in topic):
-                self.senmlpack.add(record)
+                if isinstance(record.value, dict):
+                    self.senmlpack.add(record.value.values())
+                else:
+                    self.senmlpack.add(record)
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
@@ -172,12 +231,11 @@ class AIOTCloud():
                     if (record.updated):
                         record.updated = False
                         self.senmlpack.add(record)
-
                 if len(self.senmlpack._data):
                     logging.debug("Pushing records to AIoT Cloud:")
                     if (self.debug):
                         for record in self.senmlpack:
-                            logging.debug(f"  ==> record: {record.name} value: {record.value}")
+                            logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
                     self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
                 elif (self.keepalive and (timestamp() - self.last_ping) > self.keepalive):
                     self.mqtt_client.ping()
