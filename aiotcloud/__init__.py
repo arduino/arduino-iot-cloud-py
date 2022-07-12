@@ -21,5 +21,13 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-from .ucloud import AIOTCloud
+from .ucloud import AIOTClient
 from .ucloud import AIOTObject
+
+class Location(AIOTObject):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, keys={"lat", "lon"}, **kwargs)
+
+class ColoredLight(AIOTObject):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, keys={"swi", "hue", "sat", "bri"}, **kwargs)
