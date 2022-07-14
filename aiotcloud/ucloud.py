@@ -65,29 +65,26 @@ class AIOTObject(SenmlRecord):
         return f"{self.value}"
 
     def __contains__(self, key):
-        if isinstance(self.value, dict):
-            return key in self._value
-        return False
-
-    @property
-    def initialized(self):
-        if isinstance(self.value, dict):
-            for r in self.value.values():
-                if not r.initialized: return False
-        return self.value is not None
+        return isinstance(self.value, dict) and key in self._value
 
     @property
     def updated(self):
         if isinstance(self.value, dict):
-            for r in self.value.values():
-                if r._updated: return True
+            return any(r._updated for r in self.value.values())
         return self._updated
 
     @updated.setter
     def updated(self, value):
         if isinstance(self.value, dict):
-            for r in self.value.values(): r._updated = value
+            for r in self.value.values():
+                r._updated = value
         self._updated = value
+
+    @property
+    def initialized(self):
+        if isinstance(self.value, dict):
+            return all(r.initialized for r in self.value.values())
+        return self.value is not None
 
     @SenmlRecord.value.setter
     def value(self, value):
@@ -127,7 +124,7 @@ class AIOTObject(SenmlRecord):
         if isinstance(self.value, dict):
             for r in self.value.values():
                 # NOTE: should filter by updated when it's supported.
-                if r.value is not None:
+                if r.value is not None: # and r.updated
                     pack.add(r)
         else:
             pack.add(self)
