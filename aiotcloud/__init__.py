@@ -23,11 +23,46 @@
 # THE SOFTWARE.
 from .ucloud import AIOTClient
 from .ucloud import AIOTObject
+from .ucloud import timestamp
+try:
+    import asyncio
+except ImportError:
+    import uasyncio as asyncio
 
 class Location(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"lat", "lon"}, **kwargs)
 
+class Color(AIOTObject):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, keys={"hue", "sat", "bri"}, **kwargs)
+
 class ColoredLight(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"swi", "hue", "sat", "bri"}, **kwargs)
+
+class DimmedLight(AIOTObject):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, keys={"swi", "bri"}, **kwargs)
+
+class Schedule(AIOTObject):
+    def __init__(self, name, **kwargs):
+        kwargs.update({("runnable", True)}) # Force task creation.
+        kwargs.update({("interval", 1.0)})  # Will run on every second
+        self.on_active = kwargs.pop("on_active", None)
+        # Uncomment to allow the schedule to change in runtime.
+        #kwargs["on_write"] = kwargs.get("on_write", lambda aiot, value: None)
+        self.active = False
+        super().__init__(name, keys={"frm", "to", "len", "msk"}, **kwargs)
+
+    async def run(self, aiot):
+        while True:
+            if self.initialized:
+                ts = timestamp() + aiot.get("tz_offset", 0)
+                if ts > self.frm and ts < (self.frm + self.len):
+                    if not self.active and self.on_active is not None:
+                        self.on_active(aiot, self.value)
+                    self.active = True
+                else:
+                    self.active = False
+            await asyncio.sleep(self.interval)

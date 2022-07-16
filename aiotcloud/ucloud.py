@@ -48,6 +48,7 @@ class AIOTObject(SenmlRecord):
         self.on_read  = kwargs.pop("on_read", None)
         self.on_write = kwargs.pop("on_write", None)
         self.interval = kwargs.pop("interval", 1.0)
+        self._runnable = kwargs.pop("runnable", False)
         value = kwargs.pop("value", None)
         if keys := kwargs.pop("keys", {}): # Create a complex object (with sub-records).
             mkrec = lambda k, v: AIOTObject(f"{name}:{k}", value=v, callback=self.senml_callback)
@@ -86,6 +87,10 @@ class AIOTObject(SenmlRecord):
             return all(r.initialized for r in self.value.values())
         return self.value is not None
 
+    @property
+    def runnable(self):
+        return self.on_read is not None or self.on_write is not None or self._runnable
+
     @SenmlRecord.value.setter
     def value(self, value):
         if value is not None:
@@ -114,8 +119,7 @@ class AIOTObject(SenmlRecord):
     def _build_rec_dict(self, naming_map, appendTo):
         if isinstance(self.value, dict):
             for r in self.value.values():
-                # NOTE: should filter by updated when it's supported.
-                if r.value is not None: # and r.updated
+                if r.value is not None: # NOTE: should filter by updated when it's supported.
                     r._build_rec_dict(naming_map, appendTo)
         else:
             super()._build_rec_dict(naming_map, appendTo)
@@ -123,9 +127,8 @@ class AIOTObject(SenmlRecord):
     def add_to_pack(self, pack):
         if isinstance(self.value, dict):
             for r in self.value.values():
-                # NOTE: should filter by updated when it's supported.
-                if r.value is not None: # and r.updated
-                    pack.add(r)
+                # NOTE: If record value is None it can still be added to the pack for initialization.
+                pack.add(r) # NOTE: should filter by updated when it's supported.
         else:
             pack.add(self)
         self.updated = False
@@ -159,14 +162,25 @@ class AIOTClient():
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_generic_callback)
         self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
-        # Note: this object is set by the cloud discovery protocol.
+        # Note: the following objects are initialized by the cloud.
         self.register("thing_id", value=None, on_write=self.discovery_callback)
+        self.register("tz_offset", value=None)
 
     def __getitem__(self, key):
-        return self.records[key]
+        if isinstance(self.records[key].value, dict):
+            return self.records[key]
+        return self.records[key].value
 
     def __setitem__(self, key, value):
         self.records[key].value = value
+
+    def __contains__(self, key):
+        return key in self.records
+
+    def get(self, key, default=None):
+        if key in self and self[key] is not None:
+            return self[key]
+        return default
 
     def update_systime(self):
         try:
@@ -195,7 +209,7 @@ class AIOTClient():
         self.records[aiotobj.name] = aiotobj
 
         # Create a task for this object if it has any callbacks.
-        if aiotobj.on_read is not None or aiotobj.on_write is not None:
+        if aiotobj.runnable:
             self.create_new_task(aiotobj.run, self, name=aiotobj.name)
 
         # Check if object needs to be initialized from the cloud.
@@ -219,14 +233,12 @@ class AIOTClient():
         self.thing_id  = bytes(thing_id, "utf-8")
         self.topic_in  = b"/a/t/" + self.thing_id + b"/e/i"
         self.topic_out = b"/a/t/" + self.thing_id + b"/e/o"
-
-        shadow_in = b"/a/t/" + self.thing_id + b"/shadow/i"
-        shadow_out= b"/a/t/" + self.thing_id + b"/shadow/o"
-
         logging.info(f"Subscribing to thing topic {self.topic_in}.")
         self.mqtt_client.subscribe(self.topic_in)
 
         if lastval_record := self.records.pop("r:m", None):
+            shadow_in = b"/a/t/" + self.thing_id + b"/shadow/i"
+            shadow_out= b"/a/t/" + self.thing_id + b"/shadow/o"
             lastval_record.add_to_pack(self.senmlpack)
             logging.info(f"Subscribing to shadow topic {shadow_in}.")
             self.mqtt_client.subscribe(shadow_in)

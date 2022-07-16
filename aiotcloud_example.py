@@ -35,6 +35,7 @@ else:
     from ulogging.ustrftime import strftime
 from aiotcloud import AIOTClient
 from aiotcloud import Location
+from aiotcloud import Schedule
 from aiotcloud import ColoredLight
 from random import randint, choice
 
@@ -97,6 +98,11 @@ async def main():
 
     # This variable is updated manually from user_main.
     aiot.register("user", value="")
+
+    # This object allows scheduling recurring events from the cloud UI. On activation of the event, if
+    # on_active callback is provided, it gets called with the aiot object and the schedule object value.
+    # The activation status of the object can also be polled using aiot["schedule"].active.
+    aiot.register(Schedule("schedule", on_active=lambda aiot, value: logging.info(f"Schedule activated {value}!")))
 
     # Start the AIoT client.
     await aiot.run(user_main, debug=DEBUG_ENABLED)
