@@ -186,6 +186,7 @@ class MQTTClient:
             assert 0
 
     def subscribe(self, topic, qos=0):
+        logging.info(f"Subscribing to topic: {topic}.")
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0")
         self.pid += 1
