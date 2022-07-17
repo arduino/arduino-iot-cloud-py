@@ -48,7 +48,6 @@ class DimmedLight(AIOTObject):
 class Schedule(AIOTObject):
     def __init__(self, name, **kwargs):
         kwargs.update({("runnable", True)}) # Force task creation.
-        kwargs.update({("interval", 1.0)})  # Will run on every second
         self.on_active = kwargs.pop("on_active", None)
         # Uncomment to allow the schedule to change in runtime.
         #kwargs["on_write"] = kwargs.get("on_write", lambda aiot, value: None)

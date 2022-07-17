@@ -58,7 +58,7 @@ class AIOTObject(SenmlRecord):
         self.timestamp = timestamp()
         self.dtype = type(value) # NOTE: must be set before calling super
         callback = kwargs.pop("callback", self.senml_callback)
-        for key in kwargs:  # kwargs should be empty unless a wrong attr was used.
+        for key in kwargs:  # kwargs should be empty by now, unless a wrong attr was used.
             raise TypeError(f"'{self.__class__.__name__}' got an unexpected keyword argument '{key}'")
         super().__init__(name, value=value, callback=callback)
 
@@ -97,11 +97,11 @@ class AIOTObject(SenmlRecord):
             if self.dtype is type(None):
                 self.dtype = type(value)
             elif not isinstance(value, self.dtype):
-                raise TypeError(f"task: {self.name} invalid data type. Expected {self.dtype} not {type(value)}")
+                raise TypeError(f"record: {self.name} invalid data type. Expected {self.dtype} not {type(value)}")
             else:
                 self._updated = True
             self.timestamp = timestamp()
-            logging.debug(f"task: {self.name} %s: {value} ts: {self.timestamp}"
+            logging.debug(f"record: {self.name} %s: {value} ts: {self.timestamp}"
                     %("initialized" if self.value is None else "updated"))
         self._value = value
 
@@ -135,9 +135,8 @@ class AIOTObject(SenmlRecord):
 
     def senml_callback(self, record, **kwargs):
         """
-        This is called after the record is updated from the senml pack.
-        Sets updated flag to False, to avoid sending the same value back,
-        and schedules on_write callback on the next run.
+        This is called after the record is updated from the cloud. Clear the updated flag to
+        avoid sending the same value back to the cloud, and schedule the on_write callback.
         """
         self.updated = False
         self.on_write_scheduled = True
@@ -153,7 +152,7 @@ class AIOTObject(SenmlRecord):
 
 class AIOTClient():
     def __init__(self, device_id, ssl_params=None, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=10):
-        self.tasks = []
+        self.tasks = {}
         self.records = {}
         self.thing_id = None
         self.keepalive = keepalive
@@ -161,10 +160,10 @@ class AIOTClient():
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_generic_callback)
-        self.mqtt_client = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
-        # Note: the following objects are initialized by the cloud.
-        self.register("thing_id", value=None, on_write=self.discovery_callback)
-        self.register("tz_offset", value=None)
+        self.mqtt = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
+        # Note: the following internal objects are initialized by the cloud.
+        for name in ["thing_id", "tz_offset", "tz_dst_until"]:
+            self.register(name, value=None)
 
     def __getitem__(self, key):
         if isinstance(self.records[key].value, dict):
@@ -192,12 +191,12 @@ class AIOTClient():
         except Exception as e:
             logging.error(f"Failed to set RTC time from NTP: {e}.")
 
-    def create_new_task(self, coro, *args, name=None):
-        if hasattr(asyncio.Task, "get_name"):
-            self.tasks.append(asyncio.create_task(coro(*args), name=name))
-        else:
-            self.tasks.append(asyncio.create_task(coro(*args)))
+    def create_task(self, name, coro, *args, **kwargs):
+        self.tasks[name] = asyncio.create_task(coro(*args))
         logging.debug(f"task: {name} created.")
+
+    def create_topic(self, topic, inout):
+        return bytes(f"/a/t/{self.thing_id}/{topic}/{inout}", "utf-8")
 
     def register(self, aiotobj, **kwargs):
         if isinstance(aiotobj, str):
@@ -210,7 +209,7 @@ class AIOTClient():
 
         # Create a task for this object if it has any callbacks.
         if aiotobj.runnable:
-            self.create_new_task(aiotobj.run, self, name=aiotobj.name)
+            self.create_task(aiotobj.name, aiotobj.run, self)
 
         # Check if object needs to be initialized from the cloud.
         if not aiotobj.initialized and "r:m" not in self.records:
@@ -218,31 +217,13 @@ class AIOTClient():
 
     def senml_generic_callback(self, record, **kwargs):
         """
-        This callback catches all unknown/umatched records.
+        This callback catches all unknown/umatched records that were not part the pack.
         """
-        rname, sname = record.name.split(":") if ":" in record.name else [record.name, ""]
+        rname, sname = record.name.split(":") if ":" in record.name else [record.name, None]
         if rname in self.records:
             logging.debug(f"Ignoring cloud initialization for record: {record.name}")
         else:
-            logging.debug(f"Unkown record: {record.name} value: {record.value}")
-
-    def discovery_callback(self, aiot, thing_id):
-        logging.info(f"Device configured via discovery protocol.")
-        if not thing_id:
-            raise(Exception("Device is not linked to a Thing ID."))
-        self.thing_id  = bytes(thing_id, "utf-8")
-        self.topic_in  = b"/a/t/" + self.thing_id + b"/e/i"
-        self.topic_out = b"/a/t/" + self.thing_id + b"/e/o"
-        logging.info(f"Subscribing to thing topic {self.topic_in}.")
-        self.mqtt_client.subscribe(self.topic_in)
-
-        if lastval_record := self.records.pop("r:m", None):
-            shadow_in = b"/a/t/" + self.thing_id + b"/shadow/i"
-            shadow_out= b"/a/t/" + self.thing_id + b"/shadow/o"
-            lastval_record.add_to_pack(self.senmlpack)
-            logging.info(f"Subscribing to shadow topic {shadow_in}.")
-            self.mqtt_client.subscribe(shadow_in)
-            self.mqtt_client.publish(shadow_out, self.senmlpack.to_cbor(), qos=True)
+            logging.info(f"Unkown record found: {record.name} value: {record.value}")
 
     def mqtt_callback(self, topic, message):
         logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
@@ -253,9 +234,27 @@ class AIOTClient():
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
+    async def discovery_task(self, interval=0.100):
+        while self.thing_id is None:
+            self.mqtt.check_msg()
+            if self.records.get("thing_id").value is not None:
+                self.thing_id = self.records.pop("thing_id").value
+                if not self.thing_id: # Empty thing ID should not happen.
+                    raise(Exception("Device is not linked to a Thing ID."))
+
+                self.topic_out = self.create_topic("e", "o")
+                self.mqtt.subscribe(self.create_topic("e", "i"))
+
+                if lastval_record := self.records.pop("r:m", None):
+                    lastval_record.add_to_pack(self.senmlpack)
+                    self.mqtt.subscribe(self.create_topic("shadow", "i"))
+                    self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=True)
+                logging.info(f"Device configured via discovery protocol.")
+            await asyncio.sleep(interval)
+
     async def mqtt_task(self, interval=0.100):
         while True:
-            self.mqtt_client.check_msg()
+            self.mqtt.check_msg()
             if self.thing_id is not None:
                 self.senmlpack.clear()
                 for record in self.records.values():
@@ -266,43 +265,40 @@ class AIOTClient():
                     if (self.debug):
                         for record in self.senmlpack:
                             logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
-                    self.mqtt_client.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
+                    self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
                     self.last_ping = timestamp()
                 elif (self.keepalive and (timestamp() - self.last_ping) > self.keepalive):
-                    self.mqtt_client.ping()
+                    self.mqtt.ping()
                     self.last_ping = timestamp()
                     logging.debug("No records to push, sent a ping request.")
             await asyncio.sleep(interval)
  
     async def run(self, user_main=None, debug=False):
         self.debug = debug
-        if (user_main is not None):
-            # If user code is provided, append to tasks list.
-            self.create_new_task(user_main, self, name="user code")
-
         logging.info("Connecting to AIoT cloud...")
-        if not self.mqtt_client.connect():
+        if not self.mqtt.connect():
             logging.error("Failed to connect AIoT cloud.")
             return
 
-        logging.info("Subscribing to device topic.")
-        self.mqtt_client.subscribe(self.device_topic)
-        self.create_new_task(self.mqtt_task, name="mqtt")
+        self.mqtt.subscribe(self.device_topic)
+        if (user_main is not None):
+            self.create_task("user_main", user_main, self)
+        self.create_task("mqtt_task", self.mqtt_task)
+        self.create_task("discovery", self.discovery_task)
 
         while True:
             try:
-                await asyncio.gather(*self.tasks, return_exceptions=False)
+                await asyncio.gather(*self.tasks.values(), return_exceptions=False)
                 logging.info("All tasks finished!")
                 break
             except Exception as e:
                 pass #import traceback; traceback.print_exc()
 
-            for task in self.tasks:
+            for name in list(self.tasks):
+                task = self.tasks[name]
                 try:
                     if task.done():
-                        self.tasks.remove(task)
-                    if hasattr(asyncio.Task, "get_name"):
-                        logging.error(f"Removed task: {task.get_name()}. Raised exception: {task.exception()}.")
-                    else:
-                        logging.error(f"Removed task.")
+                        self.tasks.pop(name)
+                        self.records.pop(name, None)
+                        logging.error(f"Removed task: {name}. Raised exception: {task.exception()}.")
                 except (CancelledError, InvalidStateError) as e: pass
