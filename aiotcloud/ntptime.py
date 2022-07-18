@@ -22,13 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 try:
-    import usocket as socket
-except:
     import socket
-try:
-    import ustruct as struct
-except:
     import struct
+except ImportError:
+    import usocket as socket
+    import ustruct as struct
 
 # (date(2000, 1, 1) - date(1900, 1, 1)).days * 24*60*60
 NTP_DELTA = 3155673600
@@ -44,7 +42,7 @@ def time():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.settimeout(1)
-        res = s.sendto(NTP_QUERY, addr)
+        s.sendto(NTP_QUERY, addr)
         msg = s.recv(48)
     finally:
         s.close()
