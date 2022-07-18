@@ -1,0 +1,59 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: '📦 Python Package'
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:    
+      - "!*"
+    paths:
+      - '*.py'
+      - '.github/workflows/*.yml'
+      - '.github/workflows/*.json'
+      - '!**/README.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - name: '⏳ Checkout repository'
+      uses: actions/checkout@v3
+      
+    - name: '🐍 Set up Python 3'
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+
+    - name: '🛠 Install dependencies'
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build
+
+    - name: '📦 Build package'
+      run: python3 -m build
+
+    - name: "✏️ Generate changelog"
+      id: changelog
+      uses: mikepenz/release-changelog-builder-action@v3
+      with:
+        toTag: ${{ github.sha }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: '🔥 Create release'
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        files: dist/*
+        body: ${{steps.changelog.outputs.changelog}}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
