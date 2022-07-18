@@ -26,6 +26,7 @@ import time
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
 from aiotcloud.umqtt import MQTTClient
+
 try:
     import logging
     import asyncio
@@ -36,27 +37,31 @@ except ImportError:
     import uasyncio as asyncio
     from aiotcloud import ntptime
     from uasyncio.core import CancelledError
+
     # MicroPython doesn't have this exception
     class InvalidStateError(Exception):
         pass
 
+
 def timestamp():
     return int(time.time())
 
+
 class AIOTObject(SenmlRecord):
     def __init__(self, name, **kwargs):
-        self.on_read  = kwargs.pop("on_read", None)
+        self.on_read = kwargs.pop("on_read", None)
         self.on_write = kwargs.pop("on_write", None)
         self.interval = kwargs.pop("interval", 1.0)
         self._runnable = kwargs.pop("runnable", False)
         value = kwargs.pop("value", None)
-        if keys := kwargs.pop("keys", {}): # Create a complex object (with sub-records).
-            mkrec = lambda k, v: AIOTObject(f"{name}:{k}", value=v, callback=self.senml_callback)
-            value = {k : mkrec(k, v) for (k, v) in {k: kwargs.pop(k, None) for k in keys}.items()}
+        if keys := kwargs.pop("keys", {}):
+            value = {   # Create a complex object (with sub-records).
+                k: AIOTObject(f"{name}:{k}", value=v, callback=self.senml_callback)
+                for (k, v) in {k: kwargs.pop(k, None) for k in keys}.items()
+            }
         self._updated = False
         self.on_write_scheduled = False
         self.timestamp = timestamp()
-        self.dtype = type(value) # NOTE: must be set before calling super
         callback = kwargs.pop("callback", self.senml_callback)
         for key in kwargs:  # kwargs should be empty by now, unless a wrong attr was used.
             raise TypeError(f"'{self.__class__.__name__}' got an unexpected keyword argument '{key}'")
@@ -94,15 +99,17 @@ class AIOTObject(SenmlRecord):
     @SenmlRecord.value.setter
     def value(self, value):
         if value is not None:
-            if self.dtype is type(None):
-                self.dtype = type(value)
-            elif not isinstance(value, self.dtype):
-                raise TypeError(f"record: {self.name} invalid data type. Expected {self.dtype} not {type(value)}")
-            else:
+            if self.value is not None:
+                if not isinstance(self.value, type(value)):
+                    raise TypeError(
+                        f"record: {self.name} invalid data type. Expected {type(self.value)} not {type(value)}"
+                    )
                 self._updated = True
             self.timestamp = timestamp()
-            logging.debug(f"record: {self.name} %s: {value} ts: {self.timestamp}"
-                    %("initialized" if self.value is None else "updated"))
+            logging.debug(
+                f"record: {self.name} %s: {value} ts: {self.timestamp}"
+                % ("initialized" if self.value is None else "updated")
+            )
         self._value = value
 
     def __getattr__(self, attr):
@@ -119,7 +126,7 @@ class AIOTObject(SenmlRecord):
     def _build_rec_dict(self, naming_map, appendTo):
         if isinstance(self.value, dict):
             for r in self.value.values():
-                if r.value is not None: # NOTE: should filter by updated when it's supported.
+                if r.value is not None:  # NOTE: should filter by updated when it's supported.
                     r._build_rec_dict(naming_map, appendTo)
         else:
             super()._build_rec_dict(naming_map, appendTo)
@@ -128,7 +135,7 @@ class AIOTObject(SenmlRecord):
         if isinstance(self.value, dict):
             for r in self.value.values():
                 # NOTE: If record value is None it can still be added to the pack for initialization.
-                pack.add(r) # NOTE: should filter by updated when it's supported.
+                pack.add(r)  # NOTE: should filter by updated when it's supported.
         else:
             pack.add(self)
         self.updated = False
@@ -143,14 +150,15 @@ class AIOTObject(SenmlRecord):
 
     async def run(self, aiot):
         while True:
-            if (self.on_read is not None):
+            if self.on_read is not None:
                 self.value = self.on_read(aiot)
-            if (self.on_write is not None and self.on_write_scheduled):
+            if self.on_write is not None and self.on_write_scheduled:
                 self.on_write_scheduled = False
                 self.on_write(aiot, self if isinstance(self.value, dict) else self.value)
             await asyncio.sleep(self.interval)
 
-class AIOTClient():
+
+class AIOTClient:
     def __init__(self, device_id, ssl_params=None, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=10):
         self.tasks = {}
         self.records = {}
@@ -159,7 +167,7 @@ class AIOTClient():
         self.update_systime()
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
-        self.senmlpack = SenmlPack("urn:uuid:"+device_id.decode("utf-8"), self.senml_generic_callback)
+        self.senmlpack = SenmlPack("urn:uuid:" + device_id.decode("utf-8"), self.senml_generic_callback)
         self.mqtt = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
         # Note: the following internal objects are initialized by the cloud.
         for name in ["thing_id", "tz_offset", "tz_dst_until"]:
@@ -183,11 +191,8 @@ class AIOTClient():
 
     def update_systime(self):
         try:
-            from aiotcloud import ntptime
             ntptime.settime()
             logging.info("RTC time set from NTP.")
-        except ImportError:
-            pass
         except Exception as e:
             logging.error(f"Failed to set RTC time from NTP: {e}.")
 
@@ -239,8 +244,8 @@ class AIOTClient():
             self.mqtt.check_msg()
             if self.records.get("thing_id").value is not None:
                 self.thing_id = self.records.pop("thing_id").value
-                if not self.thing_id: # Empty thing ID should not happen.
-                    raise(Exception("Device is not linked to a Thing ID."))
+                if not self.thing_id:  # Empty thing ID should not happen.
+                    raise (Exception("Device is not linked to a Thing ID."))
 
                 self.topic_out = self.create_topic("e", "o")
                 self.mqtt.subscribe(self.create_topic("e", "i"))
@@ -249,7 +254,7 @@ class AIOTClient():
                     lastval_record.add_to_pack(self.senmlpack)
                     self.mqtt.subscribe(self.create_topic("shadow", "i"))
                     self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=True)
-                logging.info(f"Device configured via discovery protocol.")
+                logging.info("Device configured via discovery protocol.")
             await asyncio.sleep(interval)
 
     async def mqtt_task(self, interval=0.100):
@@ -258,30 +263,28 @@ class AIOTClient():
             if self.thing_id is not None:
                 self.senmlpack.clear()
                 for record in self.records.values():
-                    if (record.updated):
+                    if record.updated:
                         record.add_to_pack(self.senmlpack)
                 if len(self.senmlpack._data):
                     logging.debug("Pushing records to AIoT Cloud:")
-                    if (self.debug):
-                        for record in self.senmlpack:
-                            logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
+                    for record in self.senmlpack:
+                        logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
                     self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
                     self.last_ping = timestamp()
-                elif (self.keepalive and (timestamp() - self.last_ping) > self.keepalive):
+                elif self.keepalive and (timestamp() - self.last_ping) > self.keepalive:
                     self.mqtt.ping()
                     self.last_ping = timestamp()
                     logging.debug("No records to push, sent a ping request.")
             await asyncio.sleep(interval)
- 
-    async def run(self, user_main=None, debug=False):
-        self.debug = debug
+
+    async def run(self, user_main=None):
         logging.info("Connecting to AIoT cloud...")
         if not self.mqtt.connect():
             logging.error("Failed to connect AIoT cloud.")
             return
 
         self.mqtt.subscribe(self.device_topic)
-        if (user_main is not None):
+        if user_main is not None:
             self.create_task("user_main", user_main, self)
         self.create_task("mqtt_task", self.mqtt_task)
         self.create_task("discovery", self.discovery_task)
@@ -291,8 +294,8 @@ class AIOTClient():
                 await asyncio.gather(*self.tasks.values(), return_exceptions=False)
                 logging.info("All tasks finished!")
                 break
-            except Exception as e:
-                pass #import traceback; traceback.print_exc()
+            except Exception:
+                pass  # import traceback; traceback.print_exc()
 
             for name in list(self.tasks):
                 task = self.tasks[name]
@@ -301,4 +304,5 @@ class AIOTClient():
                         self.tasks.pop(name)
                         self.records.pop(name, None)
                         logging.error(f"Removed task: {name}. Raised exception: {task.exception()}.")
-                except (CancelledError, InvalidStateError) as e: pass
+                except (CancelledError, InvalidStateError):
+                    pass

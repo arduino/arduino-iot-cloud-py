@@ -23,6 +23,7 @@
 # Based on: https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple
 
 import time
+
 try:
     import socket
     import struct
@@ -34,12 +35,23 @@ except ImportError:
     import ulogging as logging
     from ussl import wrap_socket
 
+
 class MQTTException(Exception):
     pass
 
+
 class MQTTClient:
-    def __init__(self, client_id, server, port, ssl_params,
-            user=None, password=None, keepalive=0, callback=None):
+    def __init__(
+        self,
+        client_id,
+        server,
+        port,
+        ssl_params,
+        user=None,
+        password=None,
+        keepalive=0,
+        callback=None,
+    ):
         self.client_id = client_id
         self.server = server
         self.port = port
@@ -86,7 +98,7 @@ class MQTTClient:
             self.sock = socket.socket()
             self.sock = wrap_socket(self.sock, **self.ssl_params)
             self.sock.connect(addr)
-        except:
+        except Exception:
             self.sock.close()
             self.sock = socket.socket()
             self.sock.connect(addr)
@@ -211,7 +223,7 @@ class MQTTClient:
     # messages processed internally.
     def wait_msg(self):
         res = self.sock.read(1)
-        if res == b"" or res == None:
+        if res == b"" or res is None:
             return None
         self.sock.setblocking(True)
         if res == b"\xd0":  # PINGRESP

@@ -21,36 +21,42 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-from .ucloud import AIOTClient
+from .ucloud import AIOTClient # noqa
 from .ucloud import AIOTObject
 from .ucloud import timestamp
+
 try:
     import asyncio
 except ImportError:
     import uasyncio as asyncio
 
+
 class Location(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"lat", "lon"}, **kwargs)
+
 
 class Color(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"hue", "sat", "bri"}, **kwargs)
 
+
 class ColoredLight(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"swi", "hue", "sat", "bri"}, **kwargs)
+
 
 class DimmedLight(AIOTObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"swi", "bri"}, **kwargs)
 
+
 class Schedule(AIOTObject):
     def __init__(self, name, **kwargs):
-        kwargs.update({("runnable", True)}) # Force task creation.
+        kwargs.update({("runnable", True)})  # Force task creation.
         self.on_active = kwargs.pop("on_active", None)
         # Uncomment to allow the schedule to change in runtime.
-        #kwargs["on_write"] = kwargs.get("on_write", lambda aiot, value: None)
+        # kwargs["on_write"] = kwargs.get("on_write", lambda aiot, value: None)
         self.active = False
         super().__init__(name, keys={"frm", "to", "len", "msk"}, **kwargs)
 

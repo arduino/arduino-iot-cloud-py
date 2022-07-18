@@ -22,9 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# ussl module with m2crypto backend for HSM support. 
+# ussl module with m2crypto backend for HSM support.
 
-from M2Crypto import Engine, m2, BIO, SSL
+from M2Crypto import Engine, m2, SSL
 
 _key = None
 _cert = None
@@ -32,6 +32,7 @@ _cert = None
 # Default engine and provider.
 ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
 MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
+
 
 def init(pin, certfile, keyfile, engine_path, module_path):
     global _key, _cert
@@ -43,12 +44,22 @@ def init(pin, certfile, keyfile, engine_path, module_path):
     _key = pkcs11.load_private_key(keyfile)
     _cert = pkcs11.load_certificate(certfile)
 
-def wrap_socket(sock_in, pin, certfile, keyfile, ca_certs=None, ciphers=None, engine_path=ENGINE_PATH, module_path=MODULE_PATH):
+
+def wrap_socket(
+    sock_in,
+    pin,
+    certfile,
+    keyfile,
+    ca_certs=None,
+    ciphers=None,
+    engine_path=ENGINE_PATH,
+    module_path=MODULE_PATH,
+):
     if _key is None or _cert is None:
         init(pin, certfile, keyfile, engine_path, module_path)
 
     # Create SSL context
-    ctx = SSL.Context('tls')
+    ctx = SSL.Context("tls")
     ctx.set_default_verify_paths()
     ctx.set_allow_unknown_ca(False)
 
@@ -57,7 +68,7 @@ def wrap_socket(sock_in, pin, certfile, keyfile, ca_certs=None, ciphers=None, en
 
     if ca_certs is not None:
         if ctx.load_verify_locations(ca_certs) != 1:
-            raise Exception('Failed to load CA certs')
+            raise Exception("Failed to load CA certs")
         ctx.set_verify(SSL.verify_peer, depth=9)
 
     # Set key/cert
