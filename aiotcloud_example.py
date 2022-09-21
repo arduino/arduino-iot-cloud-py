@@ -40,7 +40,7 @@ from aiotcloud import Schedule
 from aiotcloud import ColoredLight
 from random import randint, choice
 
-DEBUG_ENABLED = True
+DEBUG_ENABLED = False
 
 KEY_URI = "pkcs11:token=arduino"
 CERT_URI = "pkcs11:token=arduino"
