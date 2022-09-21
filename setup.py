@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="aiotcloud",
-    version="0.0.1",
+    version="0.0.2",
     url="https://github.com/bcmi-labs/python-aiotcloud",
     author="Ibrahim Abdelkader",
     author_email="i.abdelkader@arduino.cc",
