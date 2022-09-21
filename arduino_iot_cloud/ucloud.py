@@ -113,12 +113,12 @@ class AIOTObject(SenmlRecord):
         self._value = value
 
     def __getattr__(self, attr):
-        if isinstance(super().__dict__.get("_value", None), dict) and attr in super().value:
+        if isinstance(getattr(super(), "_value", None), dict) and attr in super().value:
             return super().value[attr].value
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
 
     def __setattr__(self, name, value):
-        if isinstance(super().__dict__.get("_value", None), dict) and name in super().value:
+        if isinstance(getattr(super(), "_value", None), dict) and name in super().value:
             self.value[name].value = value
         else:
             super().__setattr__(name, value)
