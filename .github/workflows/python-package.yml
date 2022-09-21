@@ -43,6 +43,8 @@ jobs:
     - name: "✏️ Generate changelog"
       id: changelog
       uses: mikepenz/release-changelog-builder-action@v3
+      with:
+        configuration: '.github/workflows/changelog.json'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
