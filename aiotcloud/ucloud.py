@@ -159,7 +159,16 @@ class AIOTObject(SenmlRecord):
 
 
 class AIOTClient:
-    def __init__(self, device_id, ssl_params=None, server="mqtts-sa.iot.oniudra.cc", port=8883, keepalive=10):
+    def __init__(
+            self,
+            device_id,
+            username=None,
+            password=None,
+            ssl_params=None,
+            server="mqtts-sa.iot.oniudra.cc",
+            port=8883,
+            keepalive=10
+    ):
         self.tasks = {}
         self.records = {}
         self.thing_id = None
@@ -168,7 +177,7 @@ class AIOTClient:
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("urn:uuid:" + device_id.decode("utf-8"), self.senml_generic_callback)
-        self.mqtt = MQTTClient(device_id, server, port, ssl_params, keepalive=keepalive, callback=self.mqtt_callback)
+        self.mqtt = MQTTClient(device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback)
         # Note: the following internal objects are initialized by the cloud.
         for name in ["thing_id", "tz_offset", "tz_dst_until"]:
             self.register(name, value=None)
