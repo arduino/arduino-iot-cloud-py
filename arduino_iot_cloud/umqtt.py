@@ -28,7 +28,7 @@ try:
     import socket
     import struct
     import logging
-    from aiotcloud.ussl import wrap_socket
+    from arduino_iot_cloud.ussl import wrap_socket
 except ImportError:
     import usocket as socket
     import ustruct as struct

@@ -1,4 +1,4 @@
-# This file is part of the Python AIoT Cloud.
+# This file is part of the Arduino IoT Cloud Python client.
 #
 # The MIT License (MIT)
 #
@@ -25,7 +25,7 @@
 import time
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
-from aiotcloud.umqtt import MQTTClient
+from arduino_iot_cloud.umqtt import MQTTClient
 
 try:
     import logging
@@ -35,7 +35,7 @@ try:
 except ImportError:
     import ulogging as logging
     import uasyncio as asyncio
-    from aiotcloud import ntptime
+    from arduino_iot_cloud import ntptime
     from uasyncio.core import CancelledError
 
     # MicroPython doesn't have this exception
@@ -148,13 +148,13 @@ class AIOTObject(SenmlRecord):
         self.updated = False
         self.on_write_scheduled = True
 
-    async def run(self, aiot):
+    async def run(self, client):
         while True:
             if self.on_read is not None:
-                self.value = self.on_read(aiot)
+                self.value = self.on_read(client)
             if self.on_write is not None and self.on_write_scheduled:
                 self.on_write_scheduled = False
-                self.on_write(aiot, self if isinstance(self.value, dict) else self.value)
+                self.on_write(client, self if isinstance(self.value, dict) else self.value)
             await asyncio.sleep(self.interval)
 
 
@@ -275,7 +275,7 @@ class AIOTClient:
                     if record.updated:
                         record.add_to_pack(self.senmlpack)
                 if len(self.senmlpack._data):
-                    logging.debug("Pushing records to AIoT Cloud:")
+                    logging.debug("Pushing records to Arduino IoT cloud:")
                     for record in self.senmlpack:
                         logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
                     self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
@@ -287,9 +287,9 @@ class AIOTClient:
             await asyncio.sleep(interval)
 
     async def run(self, user_main=None):
-        logging.info("Connecting to AIoT cloud...")
+        logging.info("Connecting to Arduino IoT cloud...")
         if not self.mqtt.connect():
-            logging.error("Failed to connect AIoT cloud.")
+            logging.error("Failed to connect Arduino IoT cloud.")
             return
 
         self.mqtt.subscribe(self.device_topic)

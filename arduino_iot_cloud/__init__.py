@@ -1,4 +1,4 @@
-# This file is part of the Python AIoT Cloud.
+# This file is part of the Arduino IoT Cloud Python client.
 #
 # The MIT License (MIT)
 #

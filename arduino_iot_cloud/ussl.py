@@ -1,4 +1,4 @@
-# This file is part of the Python AIoT Cloud.
+# This file is part of the Arduino IoT Cloud Python client.
 #
 # The MIT License (MIT)
 #
@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# ussl module with m2crypto backend for HSM support.
+# SSL module with m2crypto backend for HSM support.
 
 from M2Crypto import Engine, m2, SSL
 

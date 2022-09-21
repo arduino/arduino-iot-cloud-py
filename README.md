@@ -1,8 +1,8 @@
-# Python AIoT Cloud ☁️🐍☁️
-AIoT cloud implementation for Python and MicroPython.
+# Arduino IoT Cloud Micro/Python client ☁️🐍☁️
+Arduino IoT cloud client for Python and MicroPython.
 
 ## Testing on Linux
-If a crypto device is available, the following steps can be skipped, otherwise AIoT cloud can be tested on Linux using SoftHSM.
+If a crypto device is available, the following steps can be skipped, otherwise Arduino IoT cloud can be tested on Linux using SoftHSM.
 
 #### Create softhsm token
 Using the first available slot, in this case 0
@@ -43,12 +43,12 @@ softhsm2-util --delete-token --token "arduino"
 ```
 
 ### Run the example script
-* Set `KEY_URI`, `CERT_URI`, `DEVICE_ID`, `THING_ID` in `aiotcloud_example.py`.
+* Set `KEY_URI`, `CERT_URI`, `DEVICE_ID`, `THING_ID` in `example.py`.
 * Provide a CA certificate in a `ca-root.pem` file or set `CA_PATH` to `None` if it's not used.
 * Override the default `pin` and provide `ENGINE_PATH` and `MODULE_PATH` in `ssl_params` if needed.
 * Clone this repository and run the following:
 ```bash
-python aiotcloud_example.py
+python example.py
 ```
 
 ## Testing on MicroPython
@@ -69,7 +69,7 @@ CERT_PATH = "cert.der"
 async def main():
     with open(KEY_PATH, "rb") as fin: key = fin.read()
     with open(CERT_PATH, "rb") as fin: cert = fin.read()
-    aiot = AIOTCloud(device_id=DEVICE_ID, keepalive=10, ssl_params = {"key":key, "cert":cert})
+    client = AIOTClient(device_id=DEVICE_ID, keepalive=10, ssl_params = {"key":key, "cert":cert})
     ....
 ```
 
