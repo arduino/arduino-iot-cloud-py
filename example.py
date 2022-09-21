@@ -34,10 +34,10 @@ if hasattr(time, "strftime"):
     from time import strftime
 else:
     from ulogging.ustrftime import strftime
-from aiotcloud import AIOTClient
-from aiotcloud import Location
-from aiotcloud import Schedule
-from aiotcloud import ColoredLight
+from arduino_iot_cloud import AIOTClient
+from arduino_iot_cloud import Location
+from arduino_iot_cloud import Schedule
+from arduino_iot_cloud import ColoredLight
 from random import randint, choice
 
 DEBUG_ENABLED = True
@@ -48,7 +48,7 @@ CA_PATH = "ca-root.pem"
 DEVICE_ID = b"25deeda1-3fda-4d06-9c3c-dd31be382cd2"
 
 
-async def user_main(aiot):
+async def user_main(client):
     """
     Add your code here.
     NOTE: To allow other tasks to run, this function must yield
@@ -56,64 +56,64 @@ async def user_main(aiot):
     """
     while True:
         # The composite cloud object's fields can be assigned to individually:
-        aiot["clight"].hue = randint(0, 100)
-        aiot["clight"].bri = randint(0, 100)
-        aiot["user"] = choice(["=^.. ^=", "=^ ..^="])
+        client["clight"].hue = randint(0, 100)
+        client["clight"].bri = randint(0, 100)
+        client["user"] = choice(["=^.. ^=", "=^ ..^="])
         await asyncio.sleep(1.0)
 
 
-def on_switch_changed(aiot, value):
+def on_switch_changed(client, value):
     """
     This is a write callback for the switch that toggles the LED variable. The LED
-    variable can be accessed via the aiot cloud object passed in the first argument.
+    variable can be accessed via the client object passed in the first argument.
     """
     if value and not hasattr(on_switch_changed, "init"):
         on_switch_changed.init = True
         logging.info("Someone left the lights on!")
-    aiot["led"] = value
+    client["led"] = value
 
 
-def on_clight_changed(aiot, clight):
+def on_clight_changed(client, clight):
     logging.info(f"ColoredLight changed. Swi: {clight.swi} Bri: {clight.bri} Sat: {clight.sat} Hue: {clight.hue}")
 
 
 async def main():
-    aiot = AIOTClient(
+    client = AIOTClient(
         device_id=DEVICE_ID,
         ssl_params={"pin": "1234", "keyfile": KEY_URI, "certfile": CERT_URI, "ca_certs": CA_PATH},
     )
     # This cloud object is initialized with its last known value from the cloud.
-    aiot.register("sw1", value=None, on_write=on_switch_changed, interval=0.250)
+    client.register("sw1", value=None, on_write=on_switch_changed, interval=0.250)
 
     # This cloud object is initialized with its last known value from the cloud,
     # and gets manually updated from the switch's on_write_change callback.
-    aiot.register("led", value=None)
+    client.register("led", value=None)
 
     # This is a periodic cloud object that gets updated every 1 second.
-    aiot.register("pot", value=None, on_read=lambda x: randint(0, 1024), interval=1.0)
+    client.register("pot", value=None, on_read=lambda x: randint(0, 1024), interval=1.0)
 
     # This is a periodic cloud object that gets updated every 1 second,
     # with the formatted current time value.
-    aiot.register("clk", value=None, on_read=lambda x: strftime("%H:%M:%S", time.localtime()), interval=1.0)
+    client.register("clk", value=None, on_read=lambda x: strftime("%H:%M:%S", time.localtime()), interval=1.0)
 
     # This variable is an example for a composite object (a colored light object in this case),
     # which is composed of multiple variables. Once initialized, the object's variables can be
-    # accessed as normal attributes, using dot notation (e.g: aiot["clight"].swi = False)
-    aiot.register(ColoredLight("clight", swi=True, hue=22, sat=75, bri=10, on_write=on_clight_changed))
+    # accessed as normal attributes, using dot notation (e.g: client["clight"].swi = False)
+    client.register(ColoredLight("clight", swi=True, hue=22, sat=75, bri=10, on_write=on_clight_changed))
 
     # This variable is an example for a composite object (a map location).
-    aiot.register(Location("treasureisland", lat=31.264694, lon=29.979987))
+    client.register(Location("treasureisland", lat=31.264694, lon=29.979987))
 
     # This variable is updated manually from user_main.
-    aiot.register("user", value="")
+    client.register("user", value="")
 
     # This object allows scheduling recurring events from the cloud UI. On activation of the event, if
-    # on_active callback is provided, it gets called with the aiot object and the schedule object value.
-    # The activation status of the object can also be polled using aiot["schedule"].active.
-    aiot.register(Schedule("schedule", on_active=lambda aiot, value: logging.info(f"Schedule activated {value}!")))
+    # on_active callback is provided, it gets called with the client object and the schedule object value.
+    # The activation status of the object can also be polled using client["schedule"].active.
+    client.register(Schedule("schedule", on_active=lambda client, value: logging.info(f"Schedule activated {value}!")))
 
-    # Start the AIoT client.
-    await aiot.run(user_main)
+    # Start the Arduino IoT cloud client.
+    await client.run(user_main)
 
 
 if __name__ == "__main__":

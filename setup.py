@@ -4,12 +4,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="aiotcloud",
+    name="arduino_iot_cloud",
     version="0.0.2",
-    url="https://github.com/bcmi-labs/python-aiotcloud",
+    url="https://github.com/bcmi-labs/arduino-iot-cloud",
     author="Ibrahim Abdelkader",
     author_email="i.abdelkader@arduino.cc",
-    description="Arduino IoT cloud Python module",
+    description="Arduino IoT Cloud Python client",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="MIT",
