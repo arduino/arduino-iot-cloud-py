@@ -16,13 +16,12 @@ on:
       - '!**/README.md'
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
     - name: '⏳ Checkout repository'
@@ -44,8 +43,6 @@ jobs:
     - name: "✏️ Generate changelog"
       id: changelog
       uses: mikepenz/release-changelog-builder-action@v3
-      with:
-        toTag: ${{ github.sha }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
