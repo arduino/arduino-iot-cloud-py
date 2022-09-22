@@ -129,27 +129,33 @@ class AIOTObject(SenmlRecord):
             super().__setattr__(attr, value)
 
     def _build_rec_dict(self, naming_map, appendTo):
+        # This function builds a dict of records from a pack, which gets converted to CBOR and
+        # pushed to the cloud on the next update.
         if isinstance(self.value, dict):
             for r in self.value.values():
-                if r.value is not None:  # NOTE: should filter by updated when it's supported.
-                    r._build_rec_dict(naming_map, appendTo)
-        elif self._value is not None:
+                r._build_rec_dict(naming_map, appendTo)
+        else:
             super()._build_rec_dict(naming_map, appendTo)
 
-    def add_to_pack(self, pack):
+    def add_to_pack(self, pack, push=False):
+        # This function adds records that will be pushed to (or updated from) the cloud, to the SenML pack.
+        # NOTE: When adding records to be pushed to the cloud (push=True) Only initialized records are added
+        # to the pack. And when adding records to be updated from the cloud (push=False), records whose values
+        # are None are allowed to be added to the pack, so they can be initialized from the cloud.
+        # NOTE: all initialized sub-records are added to the pack whether they changed their state since the
+        # last update or not, because the cloud currently does not support partial objects updates.
         if isinstance(self.value, dict):
             for r in self.value.values():
-                # NOTE: If record value is None it can still be added to the pack for initialization.
-                pack.add(r)  # NOTE: should filter by updated when it's supported.
-        else:
+                if r._value is not None or (r._value is None and not push):
+                    pack.add(r)
+        elif self._value is not None or (self._value is None and not push):
             pack.add(self)
         self.updated = False
 
     def senml_callback(self, record, **kwargs):
-        """
-        This is called after the record is updated from the cloud. Clear the updated flag to
-        avoid sending the same value back to the cloud, and schedule the on_write callback.
-        """
+        # This function gets called after a record is updated from the cloud (from_cbor).
+        # The updated flag is cleared to avoid sending the same value again to the cloud,
+        # and the on_write function flag is set to so it gets called on the next run.
         self.updated = False
         self.on_write_scheduled = True
 
@@ -235,9 +241,7 @@ class AIOTClient:
             self.register("r:m", value="getLastValues")
 
     def senml_generic_callback(self, record, **kwargs):
-        """
-        This callback catches all unknown/umatched records that were not part the pack.
-        """
+        # This callback catches all unknown/umatched sub/records that were not part of the pack.
         rname, sname = record.name.split(":") if ":" in record.name else [record.name, None]
         if rname in self.records:
             logging.debug(f"Ignoring cloud initialization for record: {record.name}")
@@ -278,7 +282,7 @@ class AIOTClient:
                 self.senmlpack.clear()
                 for record in self.records.values():
                     if record.updated:
-                        record.add_to_pack(self.senmlpack)
+                        record.add_to_pack(self.senmlpack, push=True)
                 if len(self.senmlpack._data):
                     logging.debug("Pushing records to Arduino IoT cloud:")
                     for record in self.senmlpack:
