@@ -1,4 +1,10 @@
 {
+    "transformers": [
+      {
+        "pattern": "^(.*)\/(.+:.*)",
+        "target": "- $2"
+      }
+    ],
     "sort": "DESC",
     "template": "🪄 Changelog:\n\n${{UNCATEGORIZED}}\n",
     "pr_template": "- ${{TITLE}}",
