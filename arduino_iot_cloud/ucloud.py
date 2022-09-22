@@ -112,23 +112,28 @@ class AIOTObject(SenmlRecord):
             )
         self._value = value
 
+    def __is_subrecord(self, attr):
+        return (hasattr(super(), '__dict__')
+                and isinstance(super().__dict__.get("_value", None), dict)
+                and attr in super().value)
+
     def __getattr__(self, attr):
-        if isinstance(getattr(super(), "_value", None), dict) and attr in super().value:
+        if self.__is_subrecord(attr):
             return super().value[attr].value
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
 
-    def __setattr__(self, name, value):
-        if isinstance(getattr(super(), "_value", None), dict) and name in super().value:
-            self.value[name].value = value
+    def __setattr__(self, attr, value):
+        if self.__is_subrecord(attr):
+            self.value[attr].value = value
         else:
-            super().__setattr__(name, value)
+            super().__setattr__(attr, value)
 
     def _build_rec_dict(self, naming_map, appendTo):
         if isinstance(self.value, dict):
             for r in self.value.values():
                 if r.value is not None:  # NOTE: should filter by updated when it's supported.
                     r._build_rec_dict(naming_map, appendTo)
-        else:
+        elif self._value is not None:
             super()._build_rec_dict(naming_map, appendTo)
 
     def add_to_pack(self, pack):
