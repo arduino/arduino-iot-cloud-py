@@ -175,7 +175,7 @@ class AIOTClient:
             device_id,
             username=None,
             password=None,
-            ssl_params=None,
+            ssl_params={},
             server="mqtts-sa.iot.oniudra.cc",
             port=8883,
             keepalive=10
