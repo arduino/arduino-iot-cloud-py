@@ -106,10 +106,10 @@ class AIOTObject(SenmlRecord):
                     )
                 self._updated = True
             self.timestamp = timestamp()
-            logging.debug(
-                f"record: {self.name} %s: {value} ts: {self.timestamp}"
-                % ("initialized" if self.value is None else "updated")
-            )
+            if (self.value is None):
+                logging.info(f"Init: {self.name} value: {value} ts: {self.timestamp}")
+            else:
+                logging.debug(f"Update: {self.name} value: {value} ts: {self.timestamp}")
         self._value = value
 
     def __is_subrecord(self, attr):
@@ -218,7 +218,7 @@ class AIOTClient:
 
     def create_task(self, name, coro, *args, **kwargs):
         self.tasks[name] = asyncio.create_task(coro(*args))
-        logging.debug(f"task: {name} created.")
+        logging.info(f"task: {name} created.")
 
     def create_topic(self, topic, inout):
         return bytes(f"/a/t/{self.thing_id}/{topic}/{inout}", "utf-8")
@@ -244,9 +244,9 @@ class AIOTClient:
         # This callback catches all unknown/umatched sub/records that were not part of the pack.
         rname, sname = record.name.split(":") if ":" in record.name else [record.name, None]
         if rname in self.records:
-            logging.debug(f"Ignoring cloud initialization for record: {record.name}")
+            logging.info(f"Ignoring cloud initialization for record: {record.name}")
         else:
-            logging.info(f"Unkown record found: {record.name} value: {record.value}")
+            logging.warning(f"Unkown record found: {record.name} value: {record.value}")
 
     def mqtt_callback(self, topic, message):
         logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
@@ -285,7 +285,7 @@ class AIOTClient:
                         record.add_to_pack(self.senmlpack, push=True)
                 if len(self.senmlpack._data):
                     logging.debug("Pushing records to Arduino IoT cloud:")
-                    for record in self.senmlpack:
+                    for record in self.senmlpack._data:
                         logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
                     self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
                     self.last_ping = timestamp()

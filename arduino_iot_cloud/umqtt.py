@@ -151,7 +151,7 @@ class MQTTClient:
                 return True
             except Exception as e:
                 self.sock.close()
-                logging.info(f"Connection failed {e}, retrying after {interval}s")
+                logging.warning(f"Connection failed {e}, retrying after {interval}s")
                 time.sleep(interval)
         return False
 
@@ -198,7 +198,7 @@ class MQTTClient:
             assert 0
 
     def subscribe(self, topic, qos=0):
-        logging.info(f"Subscribing to topic: {topic}.")
+        logging.info(f"Subscribe: {topic}.")
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0")
         self.pid += 1
