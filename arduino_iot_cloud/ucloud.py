@@ -139,16 +139,16 @@ class AIOTObject(SenmlRecord):
 
     def add_to_pack(self, pack, push=False):
         # This function adds records that will be pushed to (or updated from) the cloud, to the SenML pack.
-        # NOTE: When adding records to be pushed to the cloud (push=True) Only initialized records are added
-        # to the pack. And when adding records to be updated from the cloud (push=False), records whose values
-        # are None are allowed to be added to the pack, so they can be initialized from the cloud.
+        # NOTE: When pushing records to the cloud (push==True) only fully initialized records are added to
+        # the pack. And when updating records from the cloud (push==False), partially initialized records
+        # are allowed in the pack, so they can be initialized from the cloud.
         # NOTE: all initialized sub-records are added to the pack whether they changed their state since the
         # last update or not, because the cloud currently does not support partial objects updates.
-        if isinstance(self.value, dict):
-            for r in self.value.values():
-                if r._value is not None or (r._value is None and not push):
+        if isinstance(self._value, dict):
+            if not push or self.initialized:
+                for r in self._value.values():
                     pack.add(r)
-        elif self._value is not None or (self._value is None and not push):
+        elif not push or self._value is not None:
             pack.add(self)
         self.updated = False
 
