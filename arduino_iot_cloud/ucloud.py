@@ -112,19 +112,14 @@ class AIOTObject(SenmlRecord):
                 logging.debug(f"Update: {self.name} value: {value} ts: {self.timestamp}")
         self._value = value
 
-    def __is_subrecord(self, attr):
-        return (hasattr(super(), '__dict__')
-                and isinstance(super().__dict__.get("_value", None), dict)
-                and attr in super().value)
-
     def __getattr__(self, attr):
-        if self.__is_subrecord(attr):
-            return super().value[attr].value
+        if isinstance(self.__dict__.get("_value", None), dict) and attr in self._value:
+            return self._value[attr].value
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
 
     def __setattr__(self, attr, value):
-        if self.__is_subrecord(attr):
-            self.value[attr].value = value
+        if isinstance(self.__dict__.get("_value", None), dict) and attr in self._value:
+            self._value[attr].value = value
         else:
             super().__setattr__(attr, value)
 
@@ -187,7 +182,7 @@ class AIOTClient:
         self.update_systime()
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
-        self.senmlpack = SenmlPack("urn:uuid:" + device_id.decode("utf-8"), self.senml_generic_callback)
+        self.senmlpack = SenmlPack("", self.senml_generic_callback)
         self.mqtt = MQTTClient(device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback)
         # Note: the following internal objects are initialized by the cloud.
         for name in ["thing_id", "tz_offset", "tz_dst_until"]:
@@ -312,7 +307,8 @@ class AIOTClient:
                 await asyncio.gather(*self.tasks.values(), return_exceptions=False)
                 logging.info("All tasks finished!")
                 break
-            except Exception:
+            except Exception as e:
+                except_msg = str(e)
                 pass  # import traceback; traceback.print_exc()
 
             for name in list(self.tasks):
@@ -321,6 +317,6 @@ class AIOTClient:
                     if task.done():
                         self.tasks.pop(name)
                         self.records.pop(name, None)
-                        logging.error(f"Removed task: {name}. Raised exception: {task.exception()}.")
+                        logging.error(f"Removed task: {name}. Raised exception: {except_msg}.")
                 except (CancelledError, InvalidStateError):
                     pass
