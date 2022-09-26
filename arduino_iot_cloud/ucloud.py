@@ -183,6 +183,13 @@ class AIOTClient:
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
+        if "keyfile" in ssl_params and "der" in ssl_params["keyfile"]:
+            # MicroPython does not support secure elements yet, and key/cert
+            # must be loaded from DER files and passed as binary blobs.
+            with open(ssl_params.pop("keyfile"), "rb") as f:
+                ssl_params["key"] = f.read()
+            with open(ssl_params.pop("certfile"), "rb") as f:
+                ssl_params["cert"] = f.read()
         self.mqtt = MQTTClient(device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback)
         # Note: the following internal objects are initialized by the cloud.
         for name in ["thing_id", "tz_offset", "tz_dst_until"]:
