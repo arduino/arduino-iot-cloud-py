@@ -43,10 +43,10 @@ softhsm2-util --delete-token --token "arduino"
 ```
 
 #### Run the example script
-* Set `KEY_PATH`, `CERT_PATH`, `DEVICE_ID`, `THING_ID` in `example.py`.
+* Set `KEY_PATH`, `CERT_PATH` and `DEVICE_ID` in `examples/example.py`.
 * Provide a CA certificate in a `ca-root.pem` file or set `CA_PATH` to `None` if it's not used.
 * Override the default `pin` and provide `ENGINE_PATH` and `MODULE_PATH` in `ssl_params` if needed.
-* Clone this repository and run the following:
+* Run the example:
 ```bash
 python examples/example.py
 ```
