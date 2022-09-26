@@ -1,7 +1,7 @@
 # Arduino IoT Cloud Micro/Python client ☁️🐍☁️
 Arduino IoT cloud client for Python and MicroPython.
 
-## Testing on Linux
+## Testing on CPython/Linux
 If a crypto device is available, the following steps can be skipped, otherwise Arduino IoT cloud can be tested on Linux using SoftHSM.
 
 #### Create softhsm token
@@ -42,7 +42,7 @@ When done with the token it can be deleted with the following command:
 softhsm2-util --delete-token --token "arduino"
 ```
 
-### Run the example script
+#### Run the example script
 * Set `KEY_PATH`, `CERT_PATH`, `DEVICE_ID`, `THING_ID` in `example.py`.
 * Provide a CA certificate in a `ca-root.pem` file or set `CA_PATH` to `None` if it's not used.
 * Override the default `pin` and provide `ENGINE_PATH` and `MODULE_PATH` in `ssl_params` if needed.
@@ -61,10 +61,9 @@ openssl ec -in key.pem -out key.der -outform DER
 openssl x509 -in cert.pem -out cert.der -outform DER
 ```
 
-### Run the MicroPython example script
+#### Run the MicroPython example script
 * Set `KEY_PATH`, `CERT_PATH`, to key and certificate DER paths respectively.
 * run `examples/micropython.py`
-```
 
 ## Useful links
 
