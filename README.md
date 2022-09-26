@@ -43,16 +43,17 @@ softhsm2-util --delete-token --token "arduino"
 ```
 
 ### Run the example script
-* Set `KEY_URI`, `CERT_URI`, `DEVICE_ID`, `THING_ID` in `example.py`.
+* Set `KEY_PATH`, `CERT_PATH`, `DEVICE_ID`, `THING_ID` in `example.py`.
 * Provide a CA certificate in a `ca-root.pem` file or set `CA_PATH` to `None` if it's not used.
 * Override the default `pin` and provide `ENGINE_PATH` and `MODULE_PATH` in `ssl_params` if needed.
 * Clone this repository and run the following:
 ```bash
-python example.py
+python examples/example.py
 ```
 
 ## Testing on MicroPython
-The following changes to the example code are required, because MicroPython does Not support secure elements yet:
+MicroPython currently does Not support secure elements, the key and cert files must be stored in DER format on the filesystem.
+Convert the key and certificate to DER, using the following commands, and copy to the filesystem storage.
 
 #### Convert key and certificate to `.DER`
 ```bash
@@ -60,17 +61,9 @@ openssl ec -in key.pem -out key.der -outform DER
 openssl x509 -in cert.pem -out cert.der -outform DER
 ```
 
-#### Load key and certificate from filesystem storage
-```python
-KEY_PATH  = "key.der"
-CERT_PATH = "cert.der"
-....
-
-async def main():
-    with open(KEY_PATH, "rb") as fin: key = fin.read()
-    with open(CERT_PATH, "rb") as fin: cert = fin.read()
-    client = AIOTClient(device_id=DEVICE_ID, keepalive=10, ssl_params = {"key":key, "cert":cert})
-    ....
+### Run the MicroPython example script
+* Set `KEY_PATH`, `CERT_PATH`, to key and certificate DER paths respectively.
+* run `examples/micropython.py`
 ```
 
 ## Useful links
