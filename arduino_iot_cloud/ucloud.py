@@ -43,10 +43,10 @@ except ImportError:
         pass
 
 # Server/port for basic auth.
-_DEFAULT_UP_SERVER = ("mqtts-up.iot.oniudra.cc", 8884)
+_DEFAULT_UP_SERVER = ("mqtts-up.iot.arduino.cc", 8884)
 
 # Default server/port for key/cert auth.
-_DEFAULT_SA_SERVER = ("mqtts-sa.iot.oniudra.cc", 8883)
+_DEFAULT_SA_SERVER = ("mqtts-sa.iot.arduino.cc", 8883)
 
 
 def timestamp():
