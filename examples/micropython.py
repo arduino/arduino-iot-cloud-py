@@ -36,7 +36,10 @@ def on_clight_changed(client, clight):
 async def main():
     # Create a client to connect to the Arduino IoT cloud. For MicroPython, the key and cert files must be stored
     # in DER format on the filesystem. Alternatively, a username and a password can be used for authentication:
-    #   client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY", server="mqtts-up.iot.oniudra.cc", port=8884)
+    #   client = AIOTClient(
+    #        device_id=b"DEVICE_ID",
+    #        username=b"DEVICE_ID", password=b"SECRET_KEY", server="mqtts-up.iot.oniudra.cc", port=8884
+    #   )
     client = AIOTClient(device_id=DEVICE_ID, ssl_params={"keyfile": KEY_PATH, "certfile": CERT_PATH})
 
     # Register cloud objects. Note these objects must be created first in the dashboard.
