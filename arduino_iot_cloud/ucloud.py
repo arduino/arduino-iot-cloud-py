@@ -42,6 +42,12 @@ except ImportError:
     class InvalidStateError(Exception):
         pass
 
+# Server/port for basic auth.
+_DEFAULT_UP_SERVER = ("mqtts-up.iot.oniudra.cc", 8884)
+
+# Default server/port for key/cert auth.
+_DEFAULT_SA_SERVER = ("mqtts-sa.iot.oniudra.cc", 8883)
+
 
 def timestamp():
     return int(time.time())
@@ -171,8 +177,8 @@ class AIOTClient:
             username=None,
             password=None,
             ssl_params={},
-            server="mqtts-sa.iot.oniudra.cc",
-            port=8883,
+            server=None,
+            port=None,
             keepalive=10
     ):
         self.tasks = {}
@@ -183,15 +189,28 @@ class AIOTClient:
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
+
+        # MicroPython does not support secure elements yet, and key/cert
+        # must be loaded from DER files and passed as binary blobs.
         if "keyfile" in ssl_params and "der" in ssl_params["keyfile"]:
-            # MicroPython does not support secure elements yet, and key/cert
-            # must be loaded from DER files and passed as binary blobs.
             with open(ssl_params.pop("keyfile"), "rb") as f:
                 ssl_params["key"] = f.read()
             with open(ssl_params.pop("certfile"), "rb") as f:
                 ssl_params["cert"] = f.read()
-        self.mqtt = MQTTClient(device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback)
-        # Note: the following internal objects are initialized by the cloud.
+
+        # If no server/port were passed in args, set the default server/port
+        # based on authentication type.
+        if server is None:
+            server = _DEFAULT_SA_SERVER[0] if password is None else _DEFAULT_UP_SERVER[0]
+        if port is None:
+            port = _DEFAULT_SA_SERVER[1] if password is None else _DEFAULT_UP_SERVER[1]
+
+        # Create MQTT client.
+        self.mqtt = MQTTClient(
+                device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback
+        )
+
+        # Add internal objects initialized by the cloud.
         for name in ["thing_id", "tz_offset", "tz_dst_until"]:
             self.register(name, value=None)
 
