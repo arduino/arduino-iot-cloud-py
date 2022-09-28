@@ -110,12 +110,12 @@ class AIOTObject(SenmlRecord):
                     raise TypeError(
                         f"record: {self.name} invalid data type. Expected {type(self.value)} not {type(value)}"
                     )
-                self._updated = True
+            self._updated = True
             self.timestamp = timestamp()
-            if (self.value is None):
-                logging.info(f"Init: {self.name} value: {value} ts: {self.timestamp}")
-            else:
-                logging.debug(f"Update: {self.name} value: {value} ts: {self.timestamp}")
+            logging.debug(
+                f"%s: {self.name} value: {value} ts: {self.timestamp}"
+                % ("Init" if self.value is None else "Update")
+            )
         self._value = value
 
     def __getattr__(self, attr):
