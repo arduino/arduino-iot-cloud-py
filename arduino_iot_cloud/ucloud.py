@@ -291,8 +291,8 @@ class AIOTClient:
 
                 if lastval_record := self.records.pop("r:m", None):
                     lastval_record.add_to_pack(self.senmlpack)
-                    self.mqtt.subscribe(self.create_topic("shadow", "i"))
-                    self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=True)
+                    self.mqtt.subscribe(self.create_topic("shadow", "i"), qos=1)
+                    self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
                 logging.info("Device configured via discovery protocol.")
             await asyncio.sleep(interval)
 
@@ -308,7 +308,7 @@ class AIOTClient:
                     logging.debug("Pushing records to Arduino IoT cloud:")
                     for record in self.senmlpack._data:
                         logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
-                    self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=True)
+                    self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=1)
                     self.last_ping = timestamp()
                 elif self.keepalive and (timestamp() - self.last_ping) > self.keepalive:
                     self.mqtt.ping()
