@@ -322,7 +322,7 @@ class AIOTClient:
             logging.error("Failed to connect Arduino IoT cloud.")
             return
 
-        self.mqtt.subscribe(self.device_topic)
+        self.mqtt.subscribe(self.device_topic, qos=1)
         if user_main is not None:
             self.create_task("user_main", user_main, self)
         self.create_task("mqtt_task", self.mqtt_task)
