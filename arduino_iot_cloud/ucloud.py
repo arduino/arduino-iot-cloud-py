@@ -195,8 +195,12 @@ class AIOTClient:
         if "keyfile" in ssl_params and "der" in ssl_params["keyfile"]:
             with open(ssl_params.pop("keyfile"), "rb") as f:
                 ssl_params["key"] = f.read()
+        if "certfile" in ssl_params and "der" in ssl_params["certfile"]:
             with open(ssl_params.pop("certfile"), "rb") as f:
                 ssl_params["cert"] = f.read()
+        if "ca_certs" in ssl_params and "der" in ssl_params["ca_certs"]:
+            with open(ssl_params.pop("ca_certs"), "rb") as f:
+                ssl_params["cadata"] = f.read()
 
         # If no server/port were passed in args, set the default server/port
         # based on authentication type.
