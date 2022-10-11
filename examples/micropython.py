@@ -10,7 +10,7 @@ from random import randint
 
 KEY_PATH = "key.der"
 CERT_PATH = "cert.der"
-DEVICE_ID = b"25deeda1-3fda-4d06-9c3c-dd31be382cd2"
+DEVICE_ID = b"fcbb21b8-b5b8-4961-a89f-a3f1abda7957"
 
 
 async def user_main(client):
