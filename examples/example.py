@@ -11,6 +11,7 @@ from arduino_iot_cloud import Schedule
 from arduino_iot_cloud import ColoredLight
 from random import randint
 import argparse
+import arduino_iot_cloud.ussl as ssl
 
 KEY_PATH = "pkcs11:token=arduino"
 CERT_PATH = "pkcs11:token=arduino"
@@ -45,7 +46,10 @@ async def main():
     #   client = AIOTClient(device_id, username="username", password="password")
     client = AIOTClient(
         device_id=DEVICE_ID,
-        ssl_params={"pin": "1234", "keyfile": KEY_PATH, "certfile": CERT_PATH, "ca_certs": CA_PATH},
+        ssl_params={
+            "pin": "1234",
+            "keyfile": KEY_PATH, "certfile": CERT_PATH, "ca_certs": CA_PATH, "cert_reqs": ssl.CERT_REQUIRED
+        },
     )
 
     # Register cloud objects. Note these objects must be created first in the dashboard.
