@@ -26,12 +26,15 @@
 
 from M2Crypto import Engine, m2, SSL
 
+CERT_NONE = SSL.verify_none
+CERT_REQUIRED = SSL.verify_peer
+
 _key = None
 _cert = None
 
 # Default engine and provider.
-ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
-MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
+_ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
+_MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
 
 
 def init(pin, certfile, keyfile, engine_path, module_path):
@@ -51,9 +54,10 @@ def wrap_socket(
     certfile,
     keyfile,
     ca_certs=None,
+    cert_reqs=CERT_NONE,
     ciphers=None,
-    engine_path=ENGINE_PATH,
-    module_path=MODULE_PATH,
+    engine_path=_ENGINE_PATH,
+    module_path=_MODULE_PATH,
 ):
     if _key is None or _cert is None:
         init(pin, certfile, keyfile, engine_path, module_path)
@@ -66,7 +70,7 @@ def wrap_socket(
     if ciphers is not None:
         ctx.set_cipher_list(ciphers)
 
-    if ca_certs is not None:
+    if ca_certs is not None and cert_reqs is not CERT_NONE:
         if ctx.load_verify_locations(ca_certs) != 1:
             raise Exception("Failed to load CA certs")
         ctx.set_verify(SSL.verify_peer, depth=9)
