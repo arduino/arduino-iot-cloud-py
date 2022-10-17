@@ -2,11 +2,17 @@
 # The MIT License (MIT)
 # Copyright (c) 2022 Arduino SA
 import time
+import ussl
+import network
 import uasyncio as asyncio
 import ulogging as logging
 from ulogging.ustrftime import strftime
 from arduino_iot_cloud import AIOTClient, Location, Schedule, ColoredLight
+from arduino_iot_cloud import CADATA
 from random import randint
+
+WIFI_SSID = ""   # Network SSID
+WIFI_PASS = ""   # Network key
 
 KEY_PATH = "key.der"
 CERT_PATH = "cert.der"
@@ -37,7 +43,12 @@ async def main():
     # Create a client to connect to the Arduino IoT cloud. For MicroPython, the key and cert files must be stored
     # in DER format on the filesystem. Alternatively, a username and a password can be used for authentication:
     #   client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
-    client = AIOTClient(device_id=DEVICE_ID, ssl_params={"keyfile": KEY_PATH, "certfile": CERT_PATH})
+    client = AIOTClient(
+        device_id=DEVICE_ID,
+        ssl_params={
+            "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ussl.CERT_REQUIRED
+        }
+    )
 
     # Register cloud objects. Note these objects must be created first in the dashboard.
     # This cloud object is initialized with its last known value from the cloud. When this object is updated
@@ -70,6 +81,19 @@ async def main():
     await client.run(user_main)
 
 
+def wifi_connect():
+    if not WIFI_SSID or not WIFI_PASS:
+        raise (Exception("Network is not configured"))
+
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(WIFI_SSID, WIFI_PASS)
+    while (not wlan.isconnected()):
+        logging.info("Trying to connect. Note this may take a while...")
+        time.sleep_ms(500)
+    logging.info("WiFi Connected ", wlan.ifconfig())
+
+
 if __name__ == "__main__":
     # Configure the logger.
     # All message equal or higher to the logger level are printed.
@@ -79,5 +103,8 @@ if __name__ == "__main__":
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
+
     # NOTE: Add networking code here or in boot.py
+    wifi_connect()
+
     asyncio.run(main())
