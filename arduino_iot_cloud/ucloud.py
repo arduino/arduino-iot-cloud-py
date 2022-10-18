@@ -33,9 +33,9 @@ try:
     from asyncio import CancelledError
     from asyncio import InvalidStateError
 except ImportError:
+    import ntptime
     import ulogging as logging
     import uasyncio as asyncio
-    from arduino_iot_cloud import ntptime
     from uasyncio.core import CancelledError
 
     # MicroPython doesn't have this exception
@@ -43,10 +43,10 @@ except ImportError:
         pass
 
 # Server/port for basic auth.
-_DEFAULT_UP_SERVER = ("mqtts-up.iot.arduino.cc", 8884)
+_DEFAULT_SERVER = "iot.arduino.cc"
 
-# Default server/port for key/cert auth.
-_DEFAULT_SA_SERVER = ("mqtts-sa.iot.arduino.cc", 8883)
+# Default port for cert based auth and basic auth.
+_DEFAULT_PORT = (8883, 8884)
 
 
 def timestamp():
@@ -198,6 +198,7 @@ class AIOTClient:
         if "certfile" in ssl_params and "der" in ssl_params["certfile"]:
             with open(ssl_params.pop("certfile"), "rb") as f:
                 ssl_params["cert"] = f.read()
+
         if "ca_certs" in ssl_params and "der" in ssl_params["ca_certs"]:
             with open(ssl_params.pop("ca_certs"), "rb") as f:
                 ssl_params["cadata"] = f.read()
@@ -205,9 +206,9 @@ class AIOTClient:
         # If no server/port were passed in args, set the default server/port
         # based on authentication type.
         if server is None:
-            server = _DEFAULT_SA_SERVER[0] if password is None else _DEFAULT_UP_SERVER[0]
+            server = _DEFAULT_SERVER
         if port is None:
-            port = _DEFAULT_SA_SERVER[1] if password is None else _DEFAULT_UP_SERVER[1]
+            port = _DEFAULT_PORT[0] if password is None else _DEFAULT_PORT[1]
 
         # Create MQTT client.
         self.mqtt = MQTTClient(
