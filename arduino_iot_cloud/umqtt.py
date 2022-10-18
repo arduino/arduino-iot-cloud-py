@@ -25,15 +25,15 @@
 import time
 
 try:
+    from ussl import wrap_socket
+    import usocket as socket
+    import ustruct as struct
+    import ulogging as logging
+except ImportError:
     import socket
     import struct
     import logging
     from arduino_iot_cloud.ussl import wrap_socket
-except ImportError:
-    import usocket as socket
-    import ustruct as struct
-    import ulogging as logging
-    from ussl import wrap_socket
 
 
 class MQTTException(Exception):
