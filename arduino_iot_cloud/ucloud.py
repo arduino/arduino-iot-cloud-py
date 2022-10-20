@@ -49,6 +49,10 @@ _DEFAULT_SERVER = "iot.arduino.cc"
 _DEFAULT_PORT = (8883, 8884)
 
 
+class DoneException(Exception):
+    pass
+
+
 def timestamp():
     return int(time.time())
 
@@ -278,12 +282,16 @@ class AIOTClient:
         logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
         self.senmlpack.clear()
         for record in self.records.values():
+            # If the object is uninitialized, updates are always allowed even if it's a read-only
+            # object. Otherwise, for initialized objects, updates are only allowed if the object
+            # is writable (on_write function is set) and the value is received from the out topic.
             if not record.initialized or (record.on_write is not None and b"shadow" not in topic):
                 record.add_to_pack(self.senmlpack)
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
     async def discovery_task(self, interval=0.100):
+        self.mqtt.subscribe(self.device_topic, qos=1)
         while self.thing_id is None:
             self.mqtt.check_msg()
             if self.records.get("thing_id").value is not None:
@@ -300,6 +308,25 @@ class AIOTClient:
                     self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
                 logging.info("Device configured via discovery protocol.")
             await asyncio.sleep(interval)
+        raise DoneException()
+
+    async def conn_task(self, interval=1.0, backoff=1.2):
+        logging.info("Connecting to Arduino IoT cloud...")
+        while True:
+            try:
+                self.mqtt.connect()
+                break
+            except Exception as e:
+                logging.warning(f"Connection failed {e}, retrying after {interval}s")
+                await asyncio.sleep(interval)
+                interval = min(interval * backoff, 4.0)
+
+        if self.thing_id is None:
+            self.create_task("discovery", self.discovery_task)
+        else:
+            self.mqtt.subscribe(self.create_topic("e", "i"))
+        self.create_task("mqtt_task", self.mqtt_task)
+        raise DoneException()
 
     async def mqtt_task(self, interval=0.100):
         while True:
@@ -320,27 +347,21 @@ class AIOTClient:
                     self.last_ping = timestamp()
                     logging.debug("No records to push, sent a ping request.")
             await asyncio.sleep(interval)
+        raise DoneException()
 
     async def run(self, user_main=None):
-        logging.info("Connecting to Arduino IoT cloud...")
-        if not self.mqtt.connect():
-            logging.error("Failed to connect Arduino IoT cloud.")
-            return
-
-        self.mqtt.subscribe(self.device_topic, qos=1)
+        self.create_task("conn_task", self.conn_task)
         if user_main is not None:
             self.create_task("user_main", user_main, self)
-        self.create_task("mqtt_task", self.mqtt_task)
-        self.create_task("discovery", self.discovery_task)
 
         while True:
+            task_except = None
             try:
                 await asyncio.gather(*self.tasks.values(), return_exceptions=False)
-                logging.info("All tasks finished!")
-                break
+                break   # All tasks are done, not likely.
             except Exception as e:
-                except_msg = str(e)
-                pass  # import traceback; traceback.print_exc()
+                task_except = e
+                pass    # import traceback; traceback.print_exc()
 
             for name in list(self.tasks):
                 task = self.tasks[name]
@@ -348,6 +369,11 @@ class AIOTClient:
                     if task.done():
                         self.tasks.pop(name)
                         self.records.pop(name, None)
-                        logging.error(f"Removed task: {name}. Raised exception: {except_msg}.")
+                        if isinstance(task_except, DoneException):
+                            logging.error(f"task: {name} complete.")
+                        elif task_except is not None:
+                            logging.error(f"task: {name} raised exception: {str(task_except)}.")
+                        if name == "mqtt_task":
+                            self.create_task("conn_task", self.conn_task)
                 except (CancelledError, InvalidStateError):
                     pass
