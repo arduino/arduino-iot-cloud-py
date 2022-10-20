@@ -22,8 +22,6 @@
 #
 # Based on: https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple
 
-import time
-
 try:
     from ussl import wrap_socket
     import usocket as socket
@@ -92,8 +90,13 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
-    def _connect(self, clean_session=True):
+    def connect(self, clean_session=True):
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
+
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+
         try:
             self.sock = socket.socket()
             self.sock = wrap_socket(self.sock, **self.ssl_params)
@@ -130,7 +133,6 @@ class MQTTClient:
 
         self.sock.write(premsg[0:i + 2])
         self.sock.write(msg)
-        # print(hex(len(msg)), hexlify(msg, ":"))
         self._send_str(self.client_id)
         if self.lw_topic:
             self._send_str(self.lw_topic)
@@ -143,18 +145,6 @@ class MQTTClient:
         if resp[3] != 0:
             raise MQTTException(resp[3])
         return resp[2] & 1
-
-    def connect(self, retry=10, interval=1.0, clean_session=True):
-        for i in range(0, retry):
-            try:
-                self._connect(clean_session)
-                return True
-            except Exception as e:
-                if self.sock is not None:
-                    self.sock.close()
-                logging.warning(f"Connection failed {e}, retrying after {interval}s")
-                time.sleep(interval)
-        return False
 
     def disconnect(self):
         self.sock.write(b"\xe0\0")
