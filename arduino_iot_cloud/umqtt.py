@@ -27,10 +27,12 @@ try:
     import usocket as socket
     import ustruct as struct
     import ulogging as logging
+    import uselect as select
 except ImportError:
     import socket
     import struct
     import logging
+    import select
     from arduino_iot_cloud.ussl import wrap_socket
 
 
@@ -90,7 +92,7 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
-    def connect(self, clean_session=True):
+    def connect(self, clean_session=True, timeout=5.0):
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
 
         if self.sock is not None:
@@ -99,11 +101,13 @@ class MQTTClient:
 
         try:
             self.sock = socket.socket()
+            self.sock.settimeout(timeout)
             self.sock = wrap_socket(self.sock, **self.ssl_params)
             self.sock.connect(addr)
         except Exception:
             self.sock.close()
             self.sock = socket.socket()
+            self.sock.settimeout(timeout)
             self.sock.connect(addr)
             self.sock = wrap_socket(self.sock, **self.ssl_params)
 
@@ -214,9 +218,8 @@ class MQTTClient:
     # messages processed internally.
     def wait_msg(self):
         res = self.sock.read(1)
-        if res == b"" or res is None:
+        if res is None or res == b"":
             return None
-        self.sock.setblocking(True)
         if res == b"\xd0":  # PINGRESP
             sz = self.sock.read(1)[0]
             assert sz == 0
@@ -246,5 +249,6 @@ class MQTTClient:
     # If not, returns immediately with None. Otherwise, does
     # the same processing as wait_msg.
     def check_msg(self):
-        self.sock.setblocking(False)
-        return self.wait_msg()
+        r, w, e = select.select([self.sock], [], [], 0.05)
+        if (len(r)):
+            return self.wait_msg()
