@@ -33,7 +33,7 @@ _key = None
 _cert = None
 
 # Default engine and provider.
-_ENGINE_PATH = "/usr/lib/engines-1.1/libpkcs11.so"
+_ENGINE_PATH = "/usr/lib/engines-3/libpkcs11.so"
 _MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
 
 
