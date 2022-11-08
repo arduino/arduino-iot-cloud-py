@@ -83,15 +83,11 @@ async def main():
 
 def wifi_connect():
     if not WIFI_SSID or not WIFI_PASS:
-        raise (Exception("Network is not configured"))
-
+        raise (Exception("Network is not configured. Set SSID and passwords in secrets.py"))
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+    wlan.connect(WIFI_SSID, WIFI_PASS)
     while not wlan.isconnected():
-        try:
-            wlan.connect(WIFI_SSID, WIFI_PASS)
-        except Exception as e:
-            logging.error(f"Failed to connect to WiFi: {e}.")
         logging.info("Trying to connect. Note this may take a while...")
         time.sleep_ms(500)
     logging.info("WiFi Connected ", wlan.ifconfig())
