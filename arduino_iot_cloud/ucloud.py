@@ -110,9 +110,12 @@ class AIOTObject(SenmlRecord):
     def value(self, value):
         if value is not None:
             if self.value is not None:
+                # This is a workaround for the cloud float/int conversion bug.
+                if isinstance(self.value, float) and isinstance(value, int):
+                    value = float(value)
                 if not isinstance(self.value, type(value)):
                     raise TypeError(
-                        f"record: {self.name} invalid data type. Expected {type(self.value)} not {type(value)}"
+                        f"{self.name} set to invalid data type, expected: {type(self.value)} got: {type(value)}"
                     )
             self._updated = True
             self.timestamp = timestamp()
@@ -375,5 +378,6 @@ class AIOTClient:
                             logging.error(f"task: {name} raised exception: {str(task_except)}.")
                         if name == "mqtt_task":
                             self.create_task("conn_task", self.conn_task)
+                        break   # Break after the first task is removed.
                 except (CancelledError, InvalidStateError):
                     pass
