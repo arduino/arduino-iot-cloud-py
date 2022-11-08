@@ -1,6 +1,6 @@
 # This file is part of the Python Arduino IoT Cloud.
-# The MIT License (MIT)
-# Copyright (c) 2022 Arduino SA
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
 import time
 import asyncio
 import logging
