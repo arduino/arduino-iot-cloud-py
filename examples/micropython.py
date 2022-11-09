@@ -10,9 +10,8 @@ from ulogging.ustrftime import strftime
 from arduino_iot_cloud import AIOTClient, Location, Schedule, ColoredLight
 from arduino_iot_cloud import CADATA
 from random import randint
-
-WIFI_SSID = ""   # Network SSID
-WIFI_PASS = ""   # Network key
+from secrets import WIFI_SSID
+from secrets import WIFI_PASS
 
 KEY_PATH = "key.der"
 CERT_PATH = "cert.der"
