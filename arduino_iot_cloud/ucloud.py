@@ -15,7 +15,6 @@ try:
     from asyncio import CancelledError
     from asyncio import InvalidStateError
 except ImportError:
-    import ntptime
     import ulogging as logging
     import uasyncio as asyncio
     from uasyncio.core import CancelledError
@@ -168,16 +167,20 @@ class AIOTClient:
             ssl_params={},
             server=None,
             port=None,
-            keepalive=10
+            keepalive=10,
+            ntp_server="pool.ntp.org",
+            ntp_timeout=3
     ):
         self.tasks = {}
         self.records = {}
         self.thing_id = None
         self.keepalive = keepalive
-        self.update_systime()
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
+
+        # Update RTC from NTP server on MicroPython.
+        self.update_systime(ntp_server, ntp_timeout)
 
         # MicroPython does not support secure elements yet, and key/cert
         # must be loaded from DER files and passed as binary blobs.
@@ -224,10 +227,15 @@ class AIOTClient:
             return self[key]
         return default
 
-    def update_systime(self):
+    def update_systime(self, server, timeout):
         try:
+            import ntptime
+            ntptime.host = server
+            ntptime.timeout = timeout
             ntptime.settime()
             logging.info("RTC time set from NTP.")
+        except ImportError:
+            pass    # No ntptime module.
         except Exception as e:
             logging.error(f"Failed to set RTC time from NTP: {e}.")
 
