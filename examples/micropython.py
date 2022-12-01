@@ -89,7 +89,7 @@ def wifi_connect():
     while not wlan.isconnected():
         logging.info("Trying to connect. Note this may take a while...")
         time.sleep_ms(500)
-    logging.info("WiFi Connected ", wlan.ifconfig())
+    logging.info(f"WiFi Connected {wlan.ifconfig()}")
 
 
 if __name__ == "__main__":
