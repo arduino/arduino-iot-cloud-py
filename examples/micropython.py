@@ -9,7 +9,7 @@ import ulogging as logging
 from ulogging.ustrftime import strftime
 from arduino_iot_cloud import AIOTClient, Location, Schedule, ColoredLight
 from arduino_iot_cloud import CADATA
-from random import randint
+from random import uniform
 from secrets import WIFI_SSID
 from secrets import WIFI_PASS
 
@@ -23,8 +23,8 @@ async def user_main(client):
     # must yield execution periodically by calling asyncio.sleep(seconds).
     while True:
         # The composite cloud object's fields can be assigned to individually:
-        client["clight"].hue = randint(0, 100)
-        client["clight"].bri = randint(0, 100)
+        client["clight"].hue = round(uniform(0, 100), 1)
+        client["clight"].bri = round(uniform(0, 100), 1)
         await asyncio.sleep(1.0)
 
 
