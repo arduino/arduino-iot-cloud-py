@@ -76,3 +76,17 @@ class Schedule(AIOTObject):
                 else:
                     self.active = False
             await asyncio.sleep(self.interval)
+
+
+class Task(AIOTObject):
+    def __init__(self, name, **kwargs):
+        kwargs.update({("runnable", True)})  # Force task creation.
+        self.on_run = kwargs.pop("on_run", None)
+        if not callable(self.on_run):
+            raise TypeError("Expected a callable object")
+        super().__init__(name, **kwargs)
+
+    async def run(self, aiot):
+        while True:
+            self.on_run(aiot)
+            await asyncio.sleep(self.interval)

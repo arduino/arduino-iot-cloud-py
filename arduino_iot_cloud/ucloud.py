@@ -178,6 +178,7 @@ class AIOTClient:
         self.last_ping = timestamp()
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
+        self.started = False
 
         # Update RTC from NTP server on MicroPython.
         self.update_systime(ntp_server, ntp_timeout)
@@ -240,13 +241,19 @@ class AIOTClient:
             logging.error(f"Failed to set RTC time from NTP: {e}.")
 
     def create_task(self, name, coro, *args, **kwargs):
-        self.tasks[name] = asyncio.create_task(coro(*args))
-        logging.info(f"task: {name} created.")
+        if callable(coro):
+            coro = coro(*args)
+        if self.started:
+            self.tasks[name] = asyncio.create_task(coro)
+            logging.info(f"task: {name} created.")
+        else:
+            # Defer task creation until there's a running event loop.
+            self.tasks[name] = coro
 
     def create_topic(self, topic, inout):
         return bytes(f"/a/t/{self.thing_id}/{topic}/{inout}", "utf-8")
 
-    def register(self, aiotobj, **kwargs):
+    def register(self, aiotobj, coro=None, **kwargs):
         if isinstance(aiotobj, str):
             if kwargs.get("value", None) is None and kwargs.get("on_read", None) is not None:
                 kwargs["value"] = kwargs.get("on_read")(self)
@@ -342,10 +349,15 @@ class AIOTClient:
             await asyncio.sleep(interval)
         raise DoneException()
 
-    async def run(self, user_main=None):
+    async def run(self):
+        self.started = True
+        # Creates tasks from coros here manually before calling
+        # gather, so we can keep track of tasks in self.tasks dict.
+        for name, coro in self.tasks.items():
+            self.create_task(name, coro)
+
+        # Create connection task.
         self.create_task("conn_task", self.conn_task)
-        if user_main is not None:
-            self.create_task("user_main", user_main, self)
 
         while True:
             task_except = None
@@ -371,3 +383,6 @@ class AIOTClient:
                         break   # Break after the first task is removed.
                 except (CancelledError, InvalidStateError):
                     pass
+
+    def start(self):
+        asyncio.run(self.run())
