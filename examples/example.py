@@ -2,13 +2,13 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 import time
-import asyncio
 import logging
 from time import strftime
 from arduino_iot_cloud import AIOTClient
 from arduino_iot_cloud import Location
 from arduino_iot_cloud import Schedule
 from arduino_iot_cloud import ColoredLight
+from arduino_iot_cloud import Task
 from random import uniform
 import argparse
 import arduino_iot_cloud.ussl as ssl
@@ -17,16 +17,6 @@ KEY_PATH = "pkcs11:token=arduino"
 CERT_PATH = "pkcs11:token=arduino"
 CA_PATH = "ca-root.pem"
 DEVICE_ID = b"fcbb21b8-b5b8-4961-a89f-a3f1abda7957"
-
-
-async def user_main(client):
-    # Add your code here. Note to allow other tasks to run, this function
-    # must yield execution periodically by calling asyncio.sleep(seconds).
-    while True:
-        # The composite cloud object's fields can be assigned to individually:
-        client["clight"].hue = round(uniform(0, 100), 1)
-        client["clight"].bri = round(uniform(0, 100), 1)
-        await asyncio.sleep(1.0)
 
 
 def on_switch_changed(client, value):
@@ -39,10 +29,35 @@ def on_clight_changed(client, clight):
     logging.info(f"ColoredLight changed. Swi: {clight.swi} Bri: {clight.bri} Sat: {clight.sat} Hue: {clight.hue}")
 
 
-async def main():
-    # Create a client to connect to the Arduino IoT cloud. To use a secure element, set the token "pin"
-    # and URI in "keyfile" and "certfile, and CA certificate (if used), in ssl_params. Alternatively,
-    # a username and a password can be used for authentication, for example:
+def main(client):
+    # This is a user-defined task that updates the colored light. Note any registered
+    # cloud object can be accessed using the client object passed to this function.
+    # The composite ColoredLight object fields can be assigned to individually, using dot:
+    client["clight"].hue = round(uniform(0, 100), 1)
+    client["clight"].bri = round(uniform(0, 100), 1)
+
+
+if __name__ == "__main__":
+    # Parse command line args.
+    parser = argparse.ArgumentParser(description="arduino_iot_cloud.py")
+    parser.add_argument("-d", "--debug", action="store_true",  help="Enable debugging messages")
+    args = parser.parse_args()
+
+    # Assume the host has an active Internet connection.
+
+    # Configure the logger.
+    # All message equal or higher to the logger level are printed.
+    # To see more debugging messages, pass --debug on the command line.
+    logging.basicConfig(
+        datefmt="%H:%M:%S",
+        format="%(asctime)s.%(msecs)03d %(message)s",
+        level=logging.DEBUG if args.debug else logging.INFO,
+    )
+
+    # Create a client object to connect to the Arduino IoT cloud.
+    # To use a secure element, set the token's "pin" and URI in "keyfile" and "certfile", and
+    # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
+    # be used to authenticate, for example:
     #   client = AIOTClient(device_id, username="username", password="password")
     client = AIOTClient(
         device_id=DEVICE_ID,
@@ -52,7 +67,8 @@ async def main():
         },
     )
 
-    # Register cloud objects. Note these objects must be created first in the dashboard.
+    # Register cloud objects.
+    # Note: The following objects must be created first in the dashboard and linked to the device.
     # This cloud object is initialized with its last known value from the cloud. When this object is updated
     # from the dashboard, the on_switch_changed function is called with the client object and the new value.
     client.register("sw1", value=None, on_write=on_switch_changed, interval=0.250)
@@ -78,25 +94,10 @@ async def main():
     # Note: The activation status of the object can also be polled using client["schedule"].active.
     client.register(Schedule("schedule", on_active=lambda client, value: logging.info(f"Schedule activated {value}!")))
 
-    # Start the Arduino IoT cloud client. Note a co-routine can be passed to client.run(coro), in this case it will
-    # scheduled to run along with the other cloud objects.
-    await client.run(user_main)
+    # The client can also schedule user code in a task and run it along with the other cloud objects.
+    # To schedule a user function, use the Task object and pass the task name and function in "on_run"
+    # to client.register().
+    client.register(Task("main", on_run=main, interval=1.0))
 
-
-if __name__ == "__main__":
-    # Parse command line args.
-    parser = argparse.ArgumentParser(description="arduino_iot_cloud.py")
-    parser.add_argument("-d", "--debug", action="store_true",  help="Enable debugging messages")
-    args = parser.parse_args()
-
-    # Assume the host has an active Internet connection.
-
-    # Configure the logger.
-    # All message equal or higher to the logger level are printed.
-    # To see more debugging messages, pass --debug on the command line.
-    logging.basicConfig(
-        datefmt="%H:%M:%S",
-        format="%(asctime)s.%(msecs)03d %(message)s",
-        level=logging.DEBUG if args.debug else logging.INFO,
-    )
-    asyncio.run(main())
+    # Start the Arduino IoT cloud client.
+    client.start()
