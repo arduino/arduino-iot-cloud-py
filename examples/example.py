@@ -29,7 +29,8 @@ def on_clight_changed(client, clight):
     logging.info(f"ColoredLight changed. Swi: {clight.swi} Bri: {clight.bri} Sat: {clight.sat} Hue: {clight.hue}")
 
 
-def main(client):
+def user_task(client):
+    # NOTE: this function should not block.
     # This is a user-defined task that updates the colored light. Note any registered
     # cloud object can be accessed using the client object passed to this function.
     # The composite ColoredLight object fields can be assigned to individually, using dot:
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     # To use a secure element, set the token's "pin" and URI in "keyfile" and "certfile", and
     # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
     # be used to authenticate, for example:
-    #   client = AIOTClient(device_id, username="username", password="password")
+    #   client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
     client = AIOTClient(
         device_id=DEVICE_ID,
         ssl_params={
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     # The client can also schedule user code in a task and run it along with the other cloud objects.
     # To schedule a user function, use the Task object and pass the task name and function in "on_run"
     # to client.register().
-    client.register(Task("main", on_run=main, interval=1.0))
+    client.register(Task("user_task", on_run=user_task, interval=1.0))
 
     # Start the Arduino IoT cloud client.
     client.start()
