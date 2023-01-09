@@ -1,8 +1,38 @@
-# Arduino IoT Cloud Micro/Python client ☁️🐍☁️
-Arduino IoT cloud client for Python and MicroPython.
+# Arduino IoT Cloud Python client ☁️🐍☁️
+This is a Python client for the Arduino IoT cloud, which runs on both CPython and MicroPython. The client supports basic and advanced authentication methods, and provides a user-friendly API that allows the user to connect to the cloud, and create and link local objects to cloud objects with a just a few lines of code.
+
+## Minimal Example
+The following basic example shows how to connect to the Arduino IoT cloud using basic username and password authentication, and control an LED from a dashboard's switch widget.
+```python
+# Switch callback, toggles the LED.
+def on_switch_changed(client, value):
+    # Note the client object passed to this function can be used to access
+    # and modify any registered cloud object. The following line updates
+    # the LED value.
+    client["led"] = value
+
+# 1. Create a client object, which is used to connect to the IoT cloud and link local
+# objects to cloud objects. Note a username and password can be used for basic authentication
+# on both CPython and MicroPython. For more advanced authentication methods, please see the examples.
+client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+
+# 2. Register cloud objects.
+# Note: The following objects must be created first in the dashboard and linked to the device.
+# When the switch is toggled from the dashboard, the on_switch_changed function is called with
+# the client object and new value args.
+client.register("sw1", value=None, on_write=on_switch_changed)
+
+# The LED object is updated in the switch's on_write callback.
+client.register("led", value=None)
+
+# 3. Start the Arduino cloud client.
+client.start()
+```
+
+For more detailed examples and advanced API features, please see the [examples](https://github.com/arduino/arduino-iot-cloud-py/tree/main/examples).
 
 ## Testing on CPython/Linux
-If a crypto device is available, the following steps can be skipped, otherwise Arduino IoT cloud can be tested on Linux using SoftHSM.
+The client supports basic authentication using a username and password, and the more advanced key/cert pair stored on filesystem or in a crypto device. To test this functionality, the following steps can be used to emulate a crypto device (if one is not available) using SoftHSM on Linux.
 
 #### Create softhsm token
 Using the first available slot, in this case 0
@@ -52,8 +82,7 @@ python examples/example.py
 ```
 
 ## Testing on MicroPython
-MicroPython currently does Not support secure elements, the key and cert files must be stored in DER format on the filesystem.
-Convert the key and certificate to DER, using the following commands, and copy to the filesystem storage.
+MicroPython currently does Not support secure elements. The username and password can be used, or the key and cert files must be stored in DER format on the filesystem. To test the client on MicroPython, first convert the key and certificate to DER, using the following commands, then copy the files to the internal storage.
 
 #### Convert key and certificate to `.DER`
 ```bash
