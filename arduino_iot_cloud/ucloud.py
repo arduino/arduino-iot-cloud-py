@@ -5,17 +5,16 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import time
+import logging
 from kpn_senml import SenmlPack
 from kpn_senml import SenmlRecord
 from arduino_iot_cloud.umqtt import MQTTClient
 
 try:
-    import logging
     import asyncio
     from asyncio import CancelledError
     from asyncio import InvalidStateError
 except ImportError:
-    import ulogging as logging
     import uasyncio as asyncio
     from uasyncio.core import CancelledError
 
