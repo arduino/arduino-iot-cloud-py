@@ -22,17 +22,14 @@
 #
 # Based on: https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple
 
+import socket
+import struct
+import select
+import logging
+
 try:
     from ussl import wrap_socket
-    import usocket as socket
-    import ustruct as struct
-    import ulogging as logging
-    import uselect as select
 except ImportError:
-    import socket
-    import struct
-    import logging
-    import select
     from arduino_iot_cloud.ussl import wrap_socket
 
 

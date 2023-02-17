@@ -4,8 +4,8 @@
 import time
 import ussl
 import network
-import ulogging as logging
-from ulogging.ustrftime import strftime
+import logging
+from time import strftime
 from arduino_iot_cloud import AIOTClient
 from arduino_iot_cloud import Location
 from arduino_iot_cloud import Schedule
