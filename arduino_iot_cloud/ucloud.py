@@ -6,8 +6,8 @@
 
 import time
 import logging
-from kpn_senml import SenmlPack
-from kpn_senml import SenmlRecord
+from senml import SenmlPack
+from senml import SenmlRecord
 from arduino_iot_cloud.umqtt import MQTTClient
 
 try:

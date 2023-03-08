@@ -96,7 +96,8 @@ openssl x509 -in cert.pem -out cert.der -outform DER
 
 ## Useful links
 
-* [senml-micropython](https://github.com/kpn-iot/senml-micropython-library)
+* [micropython-senml library](https://github.com/micropython/micropython-lib/tree/master/micropython/senml)
+* [micropython-cbor2 library](https://github.com/micropython/micropython-lib/tree/master/python-ecosys/cbor2)
 * [m2crypto](https://github.com/m2crypto/m2crypto)
 * [umqtt.simple](https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple)
 * [openssl docs/man](https://www.openssl.org/docs/man1.0.2/man3/)
