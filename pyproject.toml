@@ -16,9 +16,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Topic :: Software Development :: Embedded Systems",
     "Operating System :: OS Independent",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
 ]
 dependencies = [
   'cbor2 >= 5.4.6',
