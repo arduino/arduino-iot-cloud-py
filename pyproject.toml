@@ -20,6 +20,10 @@ classifiers = [
     "Topic :: Software Development :: Embedded Systems",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+  'cbor2 >= 5.4.6',
+  'micropython-senml >= 0.1.0',
+]
 
 [project.urls]
 "Homepage" = "https://github.com/arduino/arduino-iot-cloud-py"
