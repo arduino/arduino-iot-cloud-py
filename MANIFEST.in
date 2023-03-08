@@ -1,0 +1,4 @@
+include examples/*
+exclude .git*
+exclude .github/workflows/*
+exclude MANIFEST.in
