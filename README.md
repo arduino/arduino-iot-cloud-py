@@ -14,7 +14,7 @@ def on_switch_changed(client, value):
 # 1. Create a client object, which is used to connect to the IoT cloud and link local
 # objects to cloud objects. Note a username and password can be used for basic authentication
 # on both CPython and MicroPython. For more advanced authentication methods, please see the examples.
-client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
 
 # 2. Register cloud objects.
 # Note: The following objects must be created first in the dashboard and linked to the device.
