@@ -37,7 +37,7 @@ def timestamp():
     return int(time.time())
 
 
-class AIOTObject(SenmlRecord):
+class ArduinoCloudObject(SenmlRecord):
     def __init__(self, name, **kwargs):
         self.on_read = kwargs.pop("on_read", None)
         self.on_write = kwargs.pop("on_write", None)
@@ -46,7 +46,7 @@ class AIOTObject(SenmlRecord):
         value = kwargs.pop("value", None)
         if keys := kwargs.pop("keys", {}):
             value = {   # Create a complex object (with sub-records).
-                k: AIOTObject(f"{name}:{k}", value=v, callback=self.senml_callback)
+                k: ArduinoCloudObject(f"{name}:{k}", value=v, callback=self.senml_callback)
                 for (k, v) in {k: kwargs.pop(k, None) for k in keys}.items()
             }
         self._updated = False
@@ -157,7 +157,7 @@ class AIOTObject(SenmlRecord):
             await asyncio.sleep(self.interval)
 
 
-class AIOTClient:
+class ArduinoCloudClient:
     def __init__(
             self,
             device_id,
@@ -256,9 +256,9 @@ class AIOTClient:
         if isinstance(aiotobj, str):
             if kwargs.get("value", None) is None and kwargs.get("on_read", None) is not None:
                 kwargs["value"] = kwargs.get("on_read")(self)
-            aiotobj = AIOTObject(aiotobj, **kwargs)
+            aiotobj = ArduinoCloudObject(aiotobj, **kwargs)
 
-        # Register the AIOTObject
+        # Register the ArduinoCloudObject
         self.records[aiotobj.name] = aiotobj
 
         # Create a task for this object if it has any callbacks.
