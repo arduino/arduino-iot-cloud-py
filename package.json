@@ -1,0 +1,12 @@
+{
+    "urls": [
+      ["arduino_iot_cloud/__init__.py", "github:arduino/arduino-iot-cloud-py/src/arduino_iot_cloud/__init__.py"],
+      ["arduino_iot_cloud/ucloud.py", "github:arduino/arduino-iot-cloud-py/src/arduino_iot_cloud/ucloud.py"],
+      ["arduino_iot_cloud/umqtt.py", "github:arduino/arduino-iot-cloud-py/src/arduino_iot_cloud/umqtt.py"],
+      ["arduino_iot_cloud/ussl.py", "github:arduino/arduino-iot-cloud-py/src/arduino_iot_cloud/ussl.py"]
+    ],
+    "deps": [
+      ["senml", "0.1.0"]
+    ],
+    "version": "0.0.5"
+  }
