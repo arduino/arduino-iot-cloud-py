@@ -20,9 +20,9 @@ client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", passw
 # Note: The following objects must be created first in the dashboard and linked to the device.
 # When the switch is toggled from the dashboard, the on_switch_changed function is called with
 # the client object and new value args.
-client.register("sw1", value=None, on_write=on_switch_changed)
+client.register("sw1", value=None, on_update_from_cloud=on_switch_changed)
 
-# The LED object is updated in the switch's on_write callback.
+# The LED object is updated in the switch's on_update_from_cloud callback.
 client.register("led", value=None)
 
 # 3. Start the Arduino cloud client.

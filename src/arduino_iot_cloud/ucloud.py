@@ -40,7 +40,7 @@ def timestamp():
 class ArduinoCloudObject(SenmlRecord):
     def __init__(self, name, **kwargs):
         self.on_send_to_cloud = kwargs.pop("on_send_to_cloud", None)
-        self.on_write = kwargs.pop("on_write", None)
+        self.on_update_from_cloud = kwargs.pop("on_update_from_cloud", None)
         self.interval = kwargs.pop("interval", 1.0)
         self._runnable = kwargs.pop("runnable", False)
         value = kwargs.pop("value", None)
@@ -50,7 +50,7 @@ class ArduinoCloudObject(SenmlRecord):
                 for (k, v) in {k: kwargs.pop(k, None) for k in keys}.items()
             }
         self._updated = False
-        self.on_write_scheduled = False
+        self.on_update_from_cloud_scheduled = False
         self.timestamp = timestamp()
         callback = kwargs.pop("callback", self.senml_callback)
         for key in kwargs:  # kwargs should be empty by now, unless a wrong attr was used.
@@ -84,7 +84,7 @@ class ArduinoCloudObject(SenmlRecord):
 
     @property
     def runnable(self):
-        return self.on_send_to_cloud is not None or self.on_write is not None or self._runnable
+        return self.on_send_to_cloud is not None or self.on_update_from_cloud is not None or self._runnable
 
     @SenmlRecord.value.setter
     def value(self, value):
@@ -143,17 +143,17 @@ class ArduinoCloudObject(SenmlRecord):
     def senml_callback(self, record, **kwargs):
         # This function gets called after a record is updated from the cloud (from_cbor).
         # The updated flag is cleared to avoid sending the same value again to the cloud,
-        # and the on_write function flag is set to so it gets called on the next run.
+        # and the on_update_from_cloud function flag is set to so it gets called on the next run.
         self.updated = False
-        self.on_write_scheduled = True
+        self.on_update_from_cloud_scheduled = True
 
     async def run(self, client):
         while True:
             if self.on_send_to_cloud is not None:
                 self.value = self.on_send_to_cloud(client)
-            if self.on_write is not None and self.on_write_scheduled:
-                self.on_write_scheduled = False
-                self.on_write(client, self if isinstance(self.value, dict) else self.value)
+            if self.on_update_from_cloud is not None and self.on_update_from_cloud_scheduled:
+                self.on_update_from_cloud_scheduled = False
+                self.on_update_from_cloud(client, self if isinstance(self.value, dict) else self.value)
             await asyncio.sleep(self.interval)
 
 
@@ -283,8 +283,8 @@ class ArduinoCloudClient:
         for record in self.records.values():
             # If the object is uninitialized, updates are always allowed even if it's a read-only
             # object. Otherwise, for initialized objects, updates are only allowed if the object
-            # is writable (on_write function is set) and the value is received from the out topic.
-            if not record.initialized or (record.on_write is not None and b"shadow" not in topic):
+            # is writable (on_update_from_cloud function is set) and the value is received from the out topic.
+            if not record.initialized or (record.on_update_from_cloud is not None and b"shadow" not in topic):
                 record.add_to_pack(self.senmlpack)
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
