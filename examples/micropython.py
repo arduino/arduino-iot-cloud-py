@@ -6,7 +6,7 @@ import ussl
 import network
 import logging
 from time import strftime
-from arduino_iot_cloud import AIOTClient
+from arduino_iot_cloud import ArduinoCloudClient
 from arduino_iot_cloud import Location
 from arduino_iot_cloud import Schedule
 from arduino_iot_cloud import ColoredLight
@@ -68,8 +68,8 @@ if __name__ == "__main__":
     # Create a client object to connect to the Arduino IoT cloud.
     # For MicroPython, the key and cert files must be stored in DER format on the filesystem.
     # Alternatively, a username and password can be used to authenticate:
-    #   client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
-    client = AIOTClient(
+    #   client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+    client = ArduinoCloudClient(
         device_id=DEVICE_ID,
         ssl_params={
             "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ussl.CERT_REQUIRED

@@ -4,7 +4,7 @@
 import time
 import logging
 from time import strftime
-from arduino_iot_cloud import AIOTClient
+from arduino_iot_cloud import ArduinoCloudClient
 from arduino_iot_cloud import Location
 from arduino_iot_cloud import Schedule
 from arduino_iot_cloud import ColoredLight
@@ -59,8 +59,8 @@ if __name__ == "__main__":
     # To use a secure element, set the token's "pin" and URI in "keyfile" and "certfile", and
     # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
     # be used to authenticate, for example:
-    #   client = AIOTClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
-    client = AIOTClient(
+    #   client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+    client = ArduinoCloudClient(
         device_id=DEVICE_ID,
         ssl_params={
             "pin": "1234",

@@ -4,8 +4,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .ucloud import AIOTClient # noqa
-from .ucloud import AIOTObject
+from .ucloud import ArduinoCloudClient # noqa
+from .ucloud import ArduinoCloudObject
 from .ucloud import timestamp
 
 try:
@@ -36,27 +36,27 @@ CADATA = binascii.unhexlify(
 )
 
 
-class Location(AIOTObject):
+class Location(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"lat", "lon"}, **kwargs)
 
 
-class Color(AIOTObject):
+class Color(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"hue", "sat", "bri"}, **kwargs)
 
 
-class ColoredLight(AIOTObject):
+class ColoredLight(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"swi", "hue", "sat", "bri"}, **kwargs)
 
 
-class DimmedLight(AIOTObject):
+class DimmedLight(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"swi", "bri"}, **kwargs)
 
 
-class Schedule(AIOTObject):
+class Schedule(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         kwargs.update({("runnable", True)})  # Force task creation.
         self.on_active = kwargs.pop("on_active", None)
@@ -78,7 +78,7 @@ class Schedule(AIOTObject):
             await asyncio.sleep(self.interval)
 
 
-class Task(AIOTObject):
+class Task(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         kwargs.update({("runnable", True)})  # Force task creation.
         self.on_run = kwargs.pop("on_run", None)
