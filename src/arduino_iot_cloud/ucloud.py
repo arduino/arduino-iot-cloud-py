@@ -39,7 +39,7 @@ def timestamp():
 
 class ArduinoCloudObject(SenmlRecord):
     def __init__(self, name, **kwargs):
-        self.on_read = kwargs.pop("on_read", None)
+        self.on_send_to_cloud = kwargs.pop("on_send_to_cloud", None)
         self.on_write = kwargs.pop("on_write", None)
         self.interval = kwargs.pop("interval", 1.0)
         self._runnable = kwargs.pop("runnable", False)
@@ -84,7 +84,7 @@ class ArduinoCloudObject(SenmlRecord):
 
     @property
     def runnable(self):
-        return self.on_read is not None or self.on_write is not None or self._runnable
+        return self.on_send_to_cloud is not None or self.on_write is not None or self._runnable
 
     @SenmlRecord.value.setter
     def value(self, value):
@@ -149,8 +149,8 @@ class ArduinoCloudObject(SenmlRecord):
 
     async def run(self, client):
         while True:
-            if self.on_read is not None:
-                self.value = self.on_read(client)
+            if self.on_send_to_cloud is not None:
+                self.value = self.on_send_to_cloud(client)
             if self.on_write is not None and self.on_write_scheduled:
                 self.on_write_scheduled = False
                 self.on_write(client, self if isinstance(self.value, dict) else self.value)
@@ -254,8 +254,8 @@ class ArduinoCloudClient:
 
     def register(self, aiotobj, coro=None, **kwargs):
         if isinstance(aiotobj, str):
-            if kwargs.get("value", None) is None and kwargs.get("on_read", None) is not None:
-                kwargs["value"] = kwargs.get("on_read")(self)
+            if kwargs.get("value", None) is None and kwargs.get("on_send_to_cloud", None) is not None:
+                kwargs["value"] = kwargs.get("on_send_to_cloud")(self)
             aiotobj = ArduinoCloudObject(aiotobj, **kwargs)
 
         # Register the ArduinoCloudObject
