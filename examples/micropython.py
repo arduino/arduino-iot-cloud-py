@@ -16,7 +16,7 @@ from random import uniform
 from secrets import WIFI_SSID
 from secrets import WIFI_PASS
 from secrets import DEVICE_ID
-from secrets import SECRET_KEY
+from secrets import SECRET_KEY  # noqa
 
 KEY_PATH = "key.der"
 CERT_PATH = "cert.der"

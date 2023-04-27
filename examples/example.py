@@ -14,7 +14,7 @@ import argparse
 import arduino_iot_cloud.ussl as ssl
 
 from secrets import DEVICE_ID
-from secrets import SECRET_KEY
+from secrets import SECRET_KEY  # noqa
 
 KEY_PATH = "pkcs11:token=arduino"
 CERT_PATH = "pkcs11:token=arduino"
