@@ -32,15 +32,20 @@ def init(pin, certfile, keyfile, engine_path, module_path):
 
 def wrap_socket(
     sock_in,
-    pin,
-    certfile,
-    keyfile,
+    pin=None,
+    certfile=None,
+    keyfile=None,
     ca_certs=None,
     cert_reqs=CERT_NONE,
     ciphers=None,
     engine_path=_ENGINE_PATH,
     module_path=_MODULE_PATH,
 ):
+    if certfile is None or keyfile is None:
+        # Fallback to Python's SSL
+        import ssl
+        return ssl.wrap_socket(sock_in)
+
     if _key is None or _cert is None:
         init(pin, certfile, keyfile, engine_path, module_path)
 
