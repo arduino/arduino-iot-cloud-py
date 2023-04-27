@@ -15,10 +15,11 @@ from arduino_iot_cloud import CADATA
 from random import uniform
 from secrets import WIFI_SSID
 from secrets import WIFI_PASS
+from secrets import DEVICE_ID
+from secrets import SECRET_KEY
 
 KEY_PATH = "key.der"
 CERT_PATH = "cert.der"
-DEVICE_ID = b"fcbb21b8-b5b8-4961-a89f-a3f1abda7957"
 
 
 def on_switch_changed(client, value):
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     # Create a client object to connect to the Arduino IoT cloud.
     # For MicroPython, the key and cert files must be stored in DER format on the filesystem.
     # Alternatively, a username and password can be used to authenticate:
-    #   client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+    #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
     client = ArduinoCloudClient(
         device_id=DEVICE_ID,
         ssl_params={
