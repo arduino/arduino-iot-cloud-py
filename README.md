@@ -4,6 +4,9 @@ This is a Python client for the Arduino IoT cloud, which runs on both CPython an
 ## Minimal Example
 The following basic example shows how to connect to the Arduino IoT cloud using basic username and password authentication, and control an LED from a dashboard's switch widget.
 ```python
+from secrets import DEVICE_ID
+from secrets import SECRET_KEY
+
 # Switch callback, toggles the LED.
 def on_switch_changed(client, value):
     # Note the client object passed to this function can be used to access
@@ -14,7 +17,7 @@ def on_switch_changed(client, value):
 # 1. Create a client object, which is used to connect to the IoT cloud and link local
 # objects to cloud objects. Note a username and password can be used for basic authentication
 # on both CPython and MicroPython. For more advanced authentication methods, please see the examples.
-client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
 
 # 2. Register cloud objects.
 # Note: The following objects must be created first in the dashboard and linked to the device.
@@ -27,6 +30,15 @@ client.register("led", value=None)
 
 # 3. Start the Arduino cloud client.
 client.start()
+```
+
+Your `secrets.py` file should look like this:
+
+```python
+WIFI_SSID  = ""  # WiFi network SSID (for MicroPython)
+WIFI_PASS  = ""  # WiFi network key  (for MicroPython)
+DEVICE_ID  = b"" # Provided by Arduino cloud when creating a device.
+SECRET_KEY = b"" # Provided by Arduino cloud when creating a device.
 ```
 
 For more detailed examples and advanced API features, please see the [examples](https://github.com/arduino/arduino-iot-cloud-py/tree/main/examples).

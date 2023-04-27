@@ -13,10 +13,12 @@ from random import uniform
 import argparse
 import arduino_iot_cloud.ussl as ssl
 
+from secrets import DEVICE_ID
+from secrets import SECRET_KEY
+
 KEY_PATH = "pkcs11:token=arduino"
 CERT_PATH = "pkcs11:token=arduino"
 CA_PATH = "ca-root.pem"
-DEVICE_ID = b"fcbb21b8-b5b8-4961-a89f-a3f1abda7957"
 
 
 def on_switch_changed(client, value):
@@ -59,7 +61,7 @@ if __name__ == "__main__":
     # To use a secure element, set the token's "pin" and URI in "keyfile" and "certfile", and
     # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
     # be used to authenticate, for example:
-    #   client = ArduinoCloudClient(device_id=b"DEVICE_ID", username=b"DEVICE_ID", password=b"SECRET_KEY")
+    #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
     client = ArduinoCloudClient(
         device_id=DEVICE_ID,
         ssl_params={
