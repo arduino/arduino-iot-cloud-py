@@ -374,7 +374,7 @@ class ArduinoCloudClient:
                         self.tasks.pop(name)
                         self.records.pop(name, None)
                         if isinstance(task_except, DoneException):
-                            logging.error(f"task: {name} complete.")
+                            logging.info(f"task: {name} complete.")
                         elif task_except is not None:
                             logging.error(f"task: {name} raised exception: {str(task_except)}.")
                         if name == "mqtt_task":
