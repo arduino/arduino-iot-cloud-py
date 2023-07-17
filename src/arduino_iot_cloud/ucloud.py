@@ -10,14 +10,11 @@ from senml import SenmlPack
 from senml import SenmlRecord
 from arduino_iot_cloud.umqtt import MQTTClient
 
+import asyncio
+from asyncio import CancelledError
 try:
-    import asyncio
-    from asyncio import CancelledError
     from asyncio import InvalidStateError
-except ImportError:
-    import uasyncio as asyncio
-    from uasyncio.core import CancelledError
-
+except (ImportError, AttributeError):
     # MicroPython doesn't have this exception
     class InvalidStateError(Exception):
         pass
