@@ -1,0 +1,50 @@
+name: '📦 Python Package'
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+    branches:    
+      - 'main'
+    paths:
+      - '*.py'
+      - '.github/workflows/*.yml'
+      - '.github/workflows/*.json'
+      - '!**/README.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: '⏳ Checkout repository'
+      uses: actions/checkout@v3
+      
+    - name: '🐍 Set up Python 3'
+      uses: actions/setup-python@v3
+      with:
+        cache: 'pip'
+        python-version: "3.10"
+
+    - name: '🛠 Install dependencies'
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build
+        #sudo apt-get install softhsm2 gnutls-bin python3-m2crypto
+
+    - name: '📦 Build package'
+      run: python3 -m build
+
+    - name: '🛠 Install package'
+      run: |
+        python3 -m build
+        pip install dist/arduino_iot_cloud-*.whl
+
+    - name: '🔥 Test basic auth'
+      env:
+        DEVICE_ID: ${{ secrets.DEVICE_ID }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      run: |
+        python tests/ci.py --basic-auth
