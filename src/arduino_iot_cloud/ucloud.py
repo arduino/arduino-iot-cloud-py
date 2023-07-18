@@ -172,9 +172,18 @@ class ArduinoCloudClient:
         self.thing_id = None
         self.keepalive = keepalive
         self.last_ping = timestamp()
-        self.device_topic = b"/a/d/" + device_id + b"/e/i"
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
         self.started = False
+
+        # Convert args to bytes if they are passed as strings.
+        if isinstance(device_id, str):
+            device_id = bytes(device_id, "utf-8")
+        if username is not None and isinstance(username, str):
+            username = bytes(username, "utf-8")
+        if password is not None and isinstance(password, str):
+            password = bytes(password, "utf-8")
+
+        self.device_topic = b"/a/d/" + device_id + b"/e/i"
 
         # Update RTC from NTP server on MicroPython.
         self.update_systime(ntp_server, ntp_timeout)

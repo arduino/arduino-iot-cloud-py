@@ -37,8 +37,8 @@ Your `secrets.py` file should look like this:
 ```python
 WIFI_SSID  = ""  # WiFi network SSID (for MicroPython)
 WIFI_PASS  = ""  # WiFi network key  (for MicroPython)
-DEVICE_ID  = b"" # Provided by Arduino cloud when creating a device.
-SECRET_KEY = b"" # Provided by Arduino cloud when creating a device.
+DEVICE_ID  = "" # Provided by Arduino cloud when creating a device.
+SECRET_KEY = "" # Provided by Arduino cloud when creating a device.
 ```
 
 For more detailed examples and advanced API features, please see the [examples](https://github.com/arduino/arduino-iot-cloud-py/tree/main/examples).
