@@ -7,7 +7,6 @@ import sys
 import asyncio
 from arduino_iot_cloud import ArduinoCloudClient
 import argparse
-import arduino_iot_cloud.ussl as ssl
 
 
 def exception_handler(loop, context):
@@ -47,8 +46,9 @@ if __name__ == "__main__":
     # be used to authenticate, for example:
     #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
     if args.crypto_device:
+        import arduino_iot_cloud.ussl as ssl
         client = ArduinoCloudClient(
-            device_id=os.environ["DEVICE_ID"],
+            device_id=os.getenv("DEVICE_ID"),
             ssl_params={
                 "pin": "1234",
                 "keyfile": "pkcs11:token=arduino",
@@ -61,9 +61,9 @@ if __name__ == "__main__":
         )
     else:
         client = ArduinoCloudClient(
-            device_id=os.environ["DEVICE_ID"],
-            username=os.environ["DEVICE_ID"],
-            password=os.environ["SECRET_KEY"],
+            device_id=os.getenv("DEVICE_ID"),
+            username=os.getenv("DEVICE_ID"),
+            password=os.getenv("SECRET_KEY"),
         )
 
     # Register cloud objects.
