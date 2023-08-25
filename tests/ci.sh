@@ -9,17 +9,19 @@ ci_install_micropython() {
 	git clone --depth=1 https://github.com/micropython/micropython.git
 
 	cat > micropython/ports/unix/manifest.py <<-EOF
-	include("\$(PORT_DIR)/variants/manifest.py")
-	include("\$(MPY_DIR)/extmod/asyncio")
+	include("\$(PORT_DIR)/variants/standard/manifest.py")
 	require("bundle-networking")
 	require("time")
 	require("senml")
 	require("logging")
 	EOF
 
-	make -C micropython/mpy-cross/
-	make -C micropython/ports/unix/ submodules
-	make -C micropython/ports/unix/ FROZEN_MANIFEST=manifest.py CFLAGS_EXTRA="-DMICROPY_PY_SELECT=1"
+    echo "#undef MICROPY_PY_SELECT_SELECT" >> micropython/ports/unix/variants/mpconfigvariant_common.h
+    echo "#undef MICROPY_PY_SELECT_POSIX_OPTIMISATIONS" >> micropython/ports/unix/variants/mpconfigvariant_common.h
+
+	make -j12 -C micropython/mpy-cross/
+	make -j12 -C micropython/ports/unix/ submodules
+	make -j12 -C micropython/ports/unix/ FROZEN_MANIFEST=manifest.py CFLAGS_EXTRA="-DMICROPY_PY_SELECT=1"
 	cp micropython/ports/unix/build-standard/micropython ${CACHE_DIR}
 }
 

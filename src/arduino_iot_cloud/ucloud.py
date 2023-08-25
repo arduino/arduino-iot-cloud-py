@@ -5,6 +5,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import time
+import sys
 import logging
 from senml import SenmlPack
 from senml import SenmlRecord
@@ -175,6 +176,14 @@ class ArduinoCloudClient:
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
         self.started = False
 
+        if "pin" in ssl_params:
+            try:
+                # Use M2Crypto to load key and cert from HSM.
+                import M2Crypto  # noqa
+            except (ImportError, AttributeError):
+                logging.error("The m2crypto module is required to use HSM.")
+                sys.exit(1)
+
         # Convert args to bytes if they are passed as strings.
         if isinstance(device_id, str):
             device_id = bytes(device_id, "utf-8")
@@ -187,19 +196,6 @@ class ArduinoCloudClient:
 
         # Update RTC from NTP server on MicroPython.
         self.update_systime(ntp_server, ntp_timeout)
-
-        # MicroPython does not support secure elements yet, and key/cert
-        # must be loaded from DER files and passed as binary blobs.
-        if "keyfile" in ssl_params and "der" in ssl_params["keyfile"]:
-            with open(ssl_params.pop("keyfile"), "rb") as f:
-                ssl_params["key"] = f.read()
-        if "certfile" in ssl_params and "der" in ssl_params["certfile"]:
-            with open(ssl_params.pop("certfile"), "rb") as f:
-                ssl_params["cert"] = f.read()
-
-        if "ca_certs" in ssl_params and "der" in ssl_params["ca_certs"]:
-            with open(ssl_params.pop("ca_certs"), "rb") as f:
-                ssl_params["cadata"] = f.read()
 
         # If no server/port were passed in args, set the default server/port
         # based on authentication type.

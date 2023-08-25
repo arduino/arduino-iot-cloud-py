@@ -2,7 +2,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 import time
-import ussl
+import ssl
 import network
 import logging
 from time import strftime
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     client = ArduinoCloudClient(
         device_id=DEVICE_ID,
         ssl_params={
-            "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ussl.CERT_REQUIRED
+            "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ssl.CERT_REQUIRED
         }
     )
 

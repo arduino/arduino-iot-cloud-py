@@ -11,7 +11,7 @@ from arduino_iot_cloud import ColoredLight
 from arduino_iot_cloud import Task
 from random import uniform
 import argparse
-import arduino_iot_cloud.ussl as ssl
+import ssl
 
 from secrets import DEVICE_ID
 from secrets import SECRET_KEY  # noqa
