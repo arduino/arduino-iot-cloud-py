@@ -27,7 +27,13 @@ if __name__ == "__main__":
         "-d", "--debug", action="store_true", help="Enable debugging messages"
     )
     parser.add_argument(
-        "-c", "--crypto-device", action="store_true", help="Use crypto device"
+        "-b", "--basic-auth", action="store_true", help="Username and password auth",
+    )
+    parser.add_argument(
+        "-c", "--crypto-device", action="store_true", help="Use soft-hsm/crypto device",
+    )
+    parser.add_argument(
+        "-f", "--file-auth", action="store_true", help="Use key/cert files"
     )
     args = parser.parse_args()
 
@@ -45,8 +51,25 @@ if __name__ == "__main__":
     # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
     # be used to authenticate, for example:
     #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
-    if args.crypto_device:
-        import arduino_iot_cloud.ussl as ssl
+    if args.basic_auth:
+        client = ArduinoCloudClient(
+            device_id=os.getenv("DEVICE_ID"),
+            username=os.getenv("DEVICE_ID"),
+            password=os.getenv("SECRET_KEY"),
+        )
+    elif args.file_auth:
+        import ssl
+        client = ArduinoCloudClient(
+            device_id=os.getenv("DEVICE_ID"),
+            ssl_params={
+                "keyfile": "key.pem",
+                "certfile": "cert.pem",
+                "ca_certs": "ca-root.pem",
+                "cert_reqs": ssl.CERT_REQUIRED,
+            },
+        )
+    elif args.crypto_device:
+        import ssl
         client = ArduinoCloudClient(
             device_id=os.getenv("DEVICE_ID"),
             ssl_params={
@@ -60,11 +83,8 @@ if __name__ == "__main__":
             },
         )
     else:
-        client = ArduinoCloudClient(
-            device_id=os.getenv("DEVICE_ID"),
-            username=os.getenv("DEVICE_ID"),
-            password=os.getenv("SECRET_KEY"),
-        )
+        parser.print_help()
+        sys.exit(1)
 
     # Register cloud objects.
     # Note: The following objects must be created first in the dashboard and linked to the device.
