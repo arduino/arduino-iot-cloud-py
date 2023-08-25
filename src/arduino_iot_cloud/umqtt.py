@@ -26,11 +26,7 @@ import socket
 import struct
 import select
 import logging
-
-try:
-    from ussl import wrap_socket
-except ImportError:
-    from arduino_iot_cloud.ussl import wrap_socket
+import arduino_iot_cloud.ussl as ssl
 
 
 class MQTTException(Exception):
@@ -99,14 +95,14 @@ class MQTTClient:
         try:
             self.sock = socket.socket()
             self.sock.settimeout(timeout)
-            self.sock = wrap_socket(self.sock, **self.ssl_params)
+            self.sock = ssl.wrap_socket(self.sock, self.ssl_params)
             self.sock.connect(addr)
         except Exception:
             self.sock.close()
             self.sock = socket.socket()
             self.sock.settimeout(timeout)
             self.sock.connect(addr)
-            self.sock = wrap_socket(self.sock, **self.ssl_params)
+            self.sock = ssl.wrap_socket(self.sock, self.ssl_params)
 
         premsg = bytearray(b"\x10\0\0\0\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")

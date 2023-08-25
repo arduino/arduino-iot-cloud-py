@@ -22,7 +22,6 @@ classifiers = [
 ]
 dependencies = [
   'cbor2 >= 5.4.6',
-  'M2Crypto >= 0.38.0',
   'micropython-senml >= 0.1.0',
 ]
 
