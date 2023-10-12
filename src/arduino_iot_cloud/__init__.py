@@ -4,7 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .ucloud import ArduinoCloudClient # noqa
+from .ucloud import ArduinoCloudClient  # noqa
 from .ucloud import ArduinoCloudObject
 from .ucloud import timestamp
 
@@ -34,6 +34,20 @@ CADATA = binascii.unhexlify(
     b"100dd320bfe102969b6b05d8022100ead9d9da5acd12529709a8ed660fe1"
     b"8d6444ffe82217304ff2b89aafca8ecf"
 )
+
+
+class Task(ArduinoCloudObject):
+    def __init__(self, name, **kwargs):
+        kwargs.update({("runnable", True)})  # Force task creation.
+        self.on_run = kwargs.pop("on_run", None)
+        if not callable(self.on_run):
+            raise TypeError("Expected a callable object")
+        super().__init__(name, **kwargs)
+
+    async def run(self, aiot):
+        while True:
+            self.on_run(aiot)
+            await asyncio.sleep(self.interval)
 
 
 class Location(ArduinoCloudObject):
@@ -78,15 +92,77 @@ class Schedule(ArduinoCloudObject):
             await asyncio.sleep(self.interval)
 
 
-class Task(ArduinoCloudObject):
-    def __init__(self, name, **kwargs):
-        kwargs.update({("runnable", True)})  # Force task creation.
-        self.on_run = kwargs.pop("on_run", None)
-        if not callable(self.on_run):
-            raise TypeError("Expected a callable object")
-        super().__init__(name, **kwargs)
+class Television(ArduinoCloudObject):
+    PLAYBACK_FASTFORWARD = 0
+    PLAYBACK_NEXT = 1
+    PLAYBACK_PAUSE = 2
+    PLAYBACK_PLAY = 3
+    PLAYBACK_PREVIOUS = 4
+    PLAYBACK_REWIND = 5
+    PLAYBACK_STARTOVER = 6
+    PLAYBACK_STOP = 7
+    PLAYBACK_NONE = 255
+    INPUT_AUX1 = 0
+    INPUT_AUX2 = 1
+    INPUT_AUX3 = 2
+    INPUT_AUX4 = 3
+    INPUT_AUX5 = 4
+    INPUT_AUX6 = 5
+    INPUT_AUX7 = 6
+    INPUT_BLUERAY = 7
+    INPUT_CABLE = 8
+    INPUT_CD = 9
+    INPUT_COAX1 = 10
+    INPUT_COAX2 = 11
+    INPUT_COMPOSITE1 = 12
+    INPUT_DVD = 13
+    INPUT_GAME = 14
+    INPUT_HDRADIO = 15
+    INPUT_HDMI1 = 16
+    INPUT_HDMI2 = 17
+    INPUT_HDMI3 = 18
+    INPUT_HDMI4 = 19
+    INPUT_HDMI5 = 20
+    INPUT_HDMI6 = 21
+    INPUT_HDMI7 = 22
+    INPUT_HDMI8 = 23
+    INPUT_HDMI9 = 24
+    INPUT_HDMI10 = 25
+    INPUT_HDMIARC = 26
+    INPUT_INPUT1 = 27
+    INPUT_INPUT2 = 28
+    INPUT_INPUT3 = 29
+    INPUT_INPUT4 = 30
+    INPUT_INPUT5 = 31
+    INPUT_INPUT6 = 32
+    INPUT_INPUT7 = 33
+    INPUT_INPUT8 = 34
+    INPUT_INPUT9 = 35
+    INPUT_INPUT10 = 36
+    INPUT_IPOD = 37
+    INPUT_LINE1 = 38
+    INPUT_LINE2 = 39
+    INPUT_LINE3 = 40
+    INPUT_LINE4 = 41
+    INPUT_LINE5 = 42
+    INPUT_LINE6 = 43
+    INPUT_LINE7 = 44
+    INPUT_MEDIAPLAYER = 45
+    INPUT_OPTICAL1 = 46
+    INPUT_OPTICAL2 = 47
+    INPUT_PHONO = 48
+    INPUT_PLAYSTATION = 49
+    INPUT_PLAYSTATION3 = 50
+    INPUT_PLAYSTATION4 = 51
+    INPUT_SATELLITE = 52
+    INPUT_SMARTCAST = 53
+    INPUT_TUNER = 54
+    INPUT_TV = 55
+    INPUT_USBDAC = 56
+    INPUT_VIDEO1 = 57
+    INPUT_VIDEO2 = 58
+    INPUT_VIDEO3 = 59
+    INPUT_XBOX = 60
 
-    async def run(self, aiot):
-        while True:
-            self.on_run(aiot)
-            await asyncio.sleep(self.interval)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, keys={"swi", "vol", "mut", "pbc", "inp", "cha"}, **kwargs)
