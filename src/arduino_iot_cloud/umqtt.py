@@ -186,7 +186,8 @@ class MQTTClient:
             assert 0
 
     def subscribe(self, topic, qos=0):
-        logging.info(f"Subscribe: {topic}.")
+        if logging.getLogger().isEnabledFor(logging.INFO):
+            logging.info(f"Subscribe: {topic}.")
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0")
         self.pid += 1
@@ -243,5 +244,5 @@ class MQTTClient:
     # the same processing as wait_msg.
     def check_msg(self):
         r, w, e = select.select([self.sock], [], [], 0.05)
-        if (len(r)):
+        if len(r):
             return self.wait_msg()

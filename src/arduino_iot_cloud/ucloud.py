@@ -35,6 +35,10 @@ def timestamp():
     return int(time.time())
 
 
+def log_level_enabled(level):
+    return logging.getLogger().isEnabledFor(level)
+
+
 class ArduinoCloudObject(SenmlRecord):
     def __init__(self, name, **kwargs):
         self.on_read = kwargs.pop("on_read", None)
@@ -97,10 +101,11 @@ class ArduinoCloudObject(SenmlRecord):
                     )
             self._updated = True
             self.timestamp = timestamp()
-            logging.debug(
-                f"%s: {self.name} value: {value} ts: {self.timestamp}"
-                % ("Init" if self.value is None else "Update")
-            )
+            if log_level_enabled(logging.DEBUG):
+                logging.debug(
+                    f"%s: {self.name} value: {value} ts: {self.timestamp}"
+                    % ("Init" if self.value is None else "Update")
+                )
         self._value = value
 
     def __getattr__(self, attr):
@@ -239,14 +244,16 @@ class ArduinoCloudClient:
         except ImportError:
             pass    # No ntptime module.
         except Exception as e:
-            logging.error(f"Failed to set RTC time from NTP: {e}.")
+            if log_level_enabled(logging.ERROR):
+                logging.error(f"Failed to set RTC time from NTP: {e}.")
 
     def create_task(self, name, coro, *args, **kwargs):
         if callable(coro):
             coro = coro(*args)
         if self.started:
             self.tasks[name] = asyncio.create_task(coro)
-            logging.info(f"task: {name} created.")
+            if log_level_enabled(logging.INFO):
+                logging.info(f"task: {name} created.")
         else:
             # Defer task creation until there's a running event loop.
             self.tasks[name] = coro
@@ -275,12 +282,15 @@ class ArduinoCloudClient:
         # This callback catches all unknown/umatched sub/records that were not part of the pack.
         rname, sname = record.name.split(":") if ":" in record.name else [record.name, None]
         if rname in self.records:
-            logging.info(f"Ignoring cloud initialization for record: {record.name}")
+            if log_level_enabled(logging.INFO):
+                logging.info(f"Ignoring cloud initialization for record: {record.name}")
         else:
-            logging.warning(f"Unkown record found: {record.name} value: {record.value}")
+            if log_level_enabled(logging.WARNING):
+                logging.warning(f"Unkown record found: {record.name} value: {record.value}")
 
     def mqtt_callback(self, topic, message):
-        logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
+        if log_level_enabled(logging.DEBUG):
+            logging.debug(f"mqtt topic: {topic[-8:]}... message: {message[:8]}...")
         self.senmlpack.clear()
         for record in self.records.values():
             # If the object is uninitialized, updates are always allowed even if it's a read-only
@@ -318,7 +328,8 @@ class ArduinoCloudClient:
                 self.mqtt.connect()
                 break
             except Exception as e:
-                logging.warning(f"Connection failed {e}, retrying after {interval}s")
+                if log_level_enabled(logging.WARNING):
+                    logging.warning(f"Connection failed {e}, retrying after {interval}s")
                 await asyncio.sleep(interval)
                 interval = min(interval * backoff, 4.0)
 
@@ -339,8 +350,9 @@ class ArduinoCloudClient:
                         record.add_to_pack(self.senmlpack, push=True)
                 if len(self.senmlpack._data):
                     logging.debug("Pushing records to Arduino IoT cloud:")
-                    for record in self.senmlpack._data:
-                        logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
+                    if log_level_enabled(logging.DEBUG):
+                        for record in self.senmlpack._data:
+                            logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
                     self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=1)
                     self.last_ping = timestamp()
                 elif self.keepalive and (timestamp() - self.last_ping) > self.keepalive:
@@ -375,9 +387,9 @@ class ArduinoCloudClient:
                     if task.done():
                         self.tasks.pop(name)
                         self.records.pop(name, None)
-                        if isinstance(task_except, DoneException):
+                        if isinstance(task_except, DoneException) and log_level_enabled(logging.INFO):
                             logging.info(f"task: {name} complete.")
-                        elif task_except is not None:
+                        elif task_except is not None and log_level_enabled(logging.ERROR):
                             logging.error(f"task: {name} raised exception: {str(task_except)}.")
                         if name == "mqtt_task":
                             self.create_task("conn_task", self.conn_task)
