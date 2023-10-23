@@ -41,6 +41,12 @@ def user_task(client):
     client["clight"].bri = round(uniform(0, 100), 1)
 
 
+def wdt_task(client):
+    global wdt
+    # Update the WDT to prevent it from resetting the system
+    wdt.feed()
+
+
 def wifi_connect():
     if not WIFI_SSID or not WIFI_PASS:
         raise (Exception("Network is not configured. Set SSID and passwords in secrets.py"))
@@ -108,6 +114,19 @@ if __name__ == "__main__":
     # To schedule a user function, use the Task object and pass the task name and function in "on_run"
     # to client.register().
     client.register(Task("user_task", on_run=user_task, interval=1.0))
+
+    # If a Watchdog timer is available, it can be used to recover the system by resetting it, if it ever
+    # hangs or crashes for any reason. NOTE: once the WDT is enabled it must be reset periodically to
+    # prevent it from resetting the system, which is done in another user task.
+    # NOTE: Change the following to True to enable the WDT.
+    if False:
+        try:
+            from machine import WDT
+            # Enable the WDT with a timeout of 5s (1s is the minimum)
+            wdt = WDT(timeout=7500)
+            client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
+        except (ImportError, AttributeError):
+            pass
 
     # Start the Arduino IoT cloud client.
     client.start()
