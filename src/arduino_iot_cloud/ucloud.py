@@ -180,6 +180,8 @@ class ArduinoCloudClient:
         self.last_ping = timestamp()
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
         self.started = False
+        self.ntp_server = ntp_server
+        self.ntp_timeout = ntp_timeout
 
         if "pin" in ssl_params:
             try:
@@ -200,7 +202,7 @@ class ArduinoCloudClient:
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
 
         # Update RTC from NTP server on MicroPython.
-        self.update_systime(ntp_server, ntp_timeout)
+        self.update_systime()
 
         # If no server/port were passed in args, set the default server/port
         # based on authentication type.
@@ -234,11 +236,11 @@ class ArduinoCloudClient:
             return self[key]
         return default
 
-    def update_systime(self, server, timeout):
+    def update_systime(self, server=None, timeout=None):
         try:
             import ntptime
-            ntptime.host = server
-            ntptime.timeout = timeout
+            ntptime.host = self.ntp_server if server is None else server
+            ntptime.timeout = self.ntp_timeout if timeout is None else timeout
             ntptime.settime()
             logging.info("RTC time set from NTP.")
         except ImportError:

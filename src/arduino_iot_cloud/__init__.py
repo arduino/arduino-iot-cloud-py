@@ -165,4 +165,44 @@ class Television(ArduinoCloudObject):
     INPUT_XBOX = 60
 
     def __init__(self, name, **kwargs):
-        super().__init__(name, keys={"swi", "vol", "mut", "pbc", "inp", "cha"}, **kwargs)
+        super().__init__(
+            name, keys={"swi", "vol", "mut", "pbc", "inp", "cha"}, **kwargs
+        )
+
+
+def async_wifi_connection(client=None, connecting=[False]):
+    import time
+    import network
+    import logging
+
+    try:
+        from secrets import WIFI_SSID
+        from secrets import WIFI_PASS
+    except Exception:
+        raise (
+            Exception("Network is not configured. Set SSID and passwords in secrets.py")
+        )
+
+    wlan = network.WLAN(network.STA_IF)
+
+    if wlan.isconnected():
+        if connecting[0]:
+            connecting[0] = False
+            logging.info(f"WiFi connected {wlan.ifconfig()}")
+            if client is not None:
+                client.update_systime()
+    elif connecting[0]:
+        logging.info("WiFi is down. Trying to reconnect.")
+    else:
+        wlan.active(True)
+        wlan.connect(WIFI_SSID, WIFI_PASS)
+        connecting[0] = True
+        logging.info("WiFi is down. Trying to reconnect.")
+
+    # Running in sync mode, block until WiFi is connected.
+    if client is None:
+        while not wlan.isconnected():
+            logging.info("Trying to connect to WiFi.")
+            time.sleep(1.0)
+        connecting[0] = False
+        logging.info(f"WiFi Connected {wlan.ifconfig()}")
