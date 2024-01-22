@@ -2,7 +2,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 import time
-import ssl
+import ssl # noqa
 import network
 import logging
 from time import strftime
@@ -11,7 +11,7 @@ from arduino_iot_cloud import Location
 from arduino_iot_cloud import Schedule
 from arduino_iot_cloud import ColoredLight
 from arduino_iot_cloud import Task
-from arduino_iot_cloud import CADATA
+from arduino_iot_cloud import CADATA # noqa
 from random import uniform
 from secrets import WIFI_SSID
 from secrets import WIFI_PASS
@@ -75,13 +75,13 @@ if __name__ == "__main__":
     # Create a client object to connect to the Arduino IoT cloud.
     # For MicroPython, the key and cert files must be stored in DER format on the filesystem.
     # Alternatively, a username and password can be used to authenticate:
-    #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
-    client = ArduinoCloudClient(
-        device_id=DEVICE_ID,
-        ssl_params={
-            "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ssl.CERT_REQUIRED
-        }
-    )
+    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
+    # client = ArduinoCloudClient(
+    #     device_id=DEVICE_ID,
+    #     ssl_params={
+    #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA, "cert_reqs": ssl.CERT_REQUIRED
+    #     }
+    # )
 
     # Register cloud objects.
     # Note: The following objects must be created first in the dashboard and linked to the device.
