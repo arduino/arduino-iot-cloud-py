@@ -4,16 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import asyncio
+import binascii
 from .ucloud import ArduinoCloudClient  # noqa
 from .ucloud import ArduinoCloudObject
 from .ucloud import timestamp
-
-try:
-    import asyncio
-    import binascii
-except ImportError:
-    import uasyncio as asyncio
-    import ubinascii as binascii
 
 
 CADATA = binascii.unhexlify(
@@ -35,6 +30,16 @@ CADATA = binascii.unhexlify(
     b"8d6444ffe82217304ff2b89aafca8ecf"
 )
 
+async def coro():  # noqa
+    pass
+
+
+def is_async(obj):
+    if hasattr(asyncio, "iscoroutinefunction"):
+        return asyncio.iscoroutinefunction(obj)
+    else:
+        return isinstance(obj, type(coro))
+
 
 class Task(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
@@ -45,9 +50,12 @@ class Task(ArduinoCloudObject):
         super().__init__(name, **kwargs)
 
     async def run(self, aiot):
-        while True:
-            self.on_run(aiot)
-            await asyncio.sleep(self.interval)
+        if is_async(self.on_run):
+            await self.on_run(aiot)
+        else:
+            while True:
+                self.on_run(aiot)
+                await asyncio.sleep(self.interval)
 
 
 class Location(ArduinoCloudObject):
