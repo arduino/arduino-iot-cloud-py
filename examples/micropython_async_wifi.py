@@ -42,8 +42,8 @@ if __name__ == "__main__":
     )
 
     # Create a client object to connect to the Arduino IoT cloud.
-    # For MicroPython, the key and cert files must be stored in DER format on the filesystem.
-    # Alternatively, a username and password can be used to authenticate:
+    # The most basic authentication method uses a username and password. The username is the device
+    # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
     client = ArduinoCloudClient(
         device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY
     )

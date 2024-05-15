@@ -11,7 +11,7 @@ from arduino_iot_cloud import ColoredLight
 from arduino_iot_cloud import Task
 from random import uniform
 import argparse
-import ssl
+import ssl # noqa
 
 from secrets import DEVICE_ID
 from secrets import SECRET_KEY  # noqa
@@ -58,17 +58,22 @@ if __name__ == "__main__":
     )
 
     # Create a client object to connect to the Arduino IoT cloud.
-    # To use a secure element, set the token's "pin" and URI in "keyfile" and "certfile", and
-    # the CA certificate (if any) in "ssl_params". Alternatively, a username and password can
-    # be used to authenticate, for example:
-    #   client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
-    client = ArduinoCloudClient(
-        device_id=DEVICE_ID,
-        ssl_params={
-            "pin": "1234",
-            "keyfile": KEY_PATH, "certfile": CERT_PATH, "ca_certs": CA_PATH, "cert_reqs": ssl.CERT_REQUIRED
-        },
-    )
+    # The most basic authentication method uses a username and password. The username is the device
+    # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
+    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
+
+    # Alternatively, the client also supports key and certificate-based authentication. To use this
+    # mode, set "keyfile" and "certfile", and the CA certificate (if any) in "ssl_params".
+    # Furthermore, secure elements, which can be used to store the key and cert, are also supported.
+    # To secure elements, set "use_hsm" to True in "ssl_params" and set the token's "pin" if any.
+    # client = ArduinoCloudClient(
+    #     device_id=DEVICE_ID,
+    #     ssl_params={
+    #         "use_hsm": True, "pin": "1234",
+    #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cafile": CA_PATH,
+    #         "verify_mode": ssl.CERT_REQUIRED, "server_hostname" : "iot.arduino.cc"
+    #     },
+    # )
 
     # Register cloud objects.
     # Note: The following objects must be created first in the dashboard and linked to the device.
