@@ -27,6 +27,7 @@ import struct
 import select
 import logging
 import arduino_iot_cloud.ussl as ssl
+import sys
 
 
 class MQTTException(Exception):
@@ -92,17 +93,14 @@ class MQTTClient:
             self.sock.close()
             self.sock = None
 
-        try:
-            self.sock = socket.socket()
-            self.sock.settimeout(timeout)
-            self.sock = ssl.wrap_socket(self.sock, self.ssl_params)
-            self.sock.connect(addr)
-        except Exception:
-            self.sock.close()
-            self.sock = socket.socket()
-            self.sock.settimeout(timeout)
+        self.sock = socket.socket()
+        self.sock.settimeout(timeout)
+        if sys.implementation.name == "micropython":
             self.sock.connect(addr)
             self.sock = ssl.wrap_socket(self.sock, self.ssl_params)
+        else:
+            self.sock = ssl.wrap_socket(self.sock, self.ssl_params)
+            self.sock.connect(addr)
 
         premsg = bytearray(b"\x10\0\0\0\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
