@@ -66,7 +66,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
-        level=logging.INFO,
+        level=logging.DEBUG,
     )
 
     # NOTE: Add networking code here or in boot.py
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # Create a client object to connect to the Arduino IoT cloud.
     # The most basic authentication method uses a username and password. The username is the device
     # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
-    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
+    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY, sync_mode=False)
 
     # Alternatively, the client also supports key and certificate-based authentication. To use this
     # mode, set "keyfile" and "certfile", and the CA certificate (if any) in "ssl_params".
@@ -86,6 +86,7 @@ if __name__ == "__main__":
     #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA,
     #         "verify_mode": ssl.CERT_REQUIRED, "server_hostname" : "iot.arduino.cc"
     #     },
+    #     sync_mode=False,
     # )
 
     # Register cloud objects.
@@ -133,5 +134,11 @@ if __name__ == "__main__":
         except (ImportError, AttributeError):
             pass
 
-    # Start the Arduino IoT cloud client.
+    # Start the Arduino IoT cloud client. In synchronous mode, this function returns immediately
+    # after connecting to the cloud.
     client.start()
+
+    # In sync mode, start returns after connecting, and the client must be polled periodically.
+    while True:
+        client.update()
+        time.sleep(0.100)

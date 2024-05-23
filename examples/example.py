@@ -44,6 +44,7 @@ if __name__ == "__main__":
     # Parse command line args.
     parser = argparse.ArgumentParser(description="arduino_iot_cloud.py")
     parser.add_argument("-d", "--debug", action="store_true",  help="Enable debugging messages")
+    parser.add_argument("-s", "--sync", action="store_true",  help="Run in synchronous mode")
     args = parser.parse_args()
 
     # Assume the host has an active Internet connection.
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     # Create a client object to connect to the Arduino IoT cloud.
     # The most basic authentication method uses a username and password. The username is the device
     # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
-    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY)
+    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY, sync_mode=args.sync)
 
     # Alternatively, the client also supports key and certificate-based authentication. To use this
     # mode, set "keyfile" and "certfile", and the CA certificate (if any) in "ssl_params".
@@ -73,6 +74,7 @@ if __name__ == "__main__":
     #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cafile": CA_PATH,
     #         "verify_mode": ssl.CERT_REQUIRED, "server_hostname" : "iot.arduino.cc"
     #     },
+    #     sync_mode=args.sync,
     # )
 
     # Register cloud objects.
@@ -107,5 +109,11 @@ if __name__ == "__main__":
     # to client.register().
     client.register(Task("user_task", on_run=user_task, interval=1.0))
 
-    # Start the Arduino IoT cloud client.
+    # Start the Arduino IoT cloud client. In synchronous mode, this function returns immediately
+    # after connecting to the cloud.
     client.start()
+
+    # In sync mode, start returns after connecting, and the client must be polled periodically.
+    while True:
+        client.update()
+        time.sleep(0.100)
