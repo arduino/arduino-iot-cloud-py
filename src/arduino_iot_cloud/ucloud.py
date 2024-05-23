@@ -35,6 +35,10 @@ def timestamp():
     return int(time.time())
 
 
+def timestamp_ms():
+    return time.time_ns()//1000000
+
+
 def log_level_enabled(level):
     return logging.getLogger().isEnabledFor(level)
 
@@ -43,8 +47,9 @@ class ArduinoCloudObject(SenmlRecord):
     def __init__(self, name, **kwargs):
         self.on_read = kwargs.pop("on_read", None)
         self.on_write = kwargs.pop("on_write", None)
+        self.on_run = kwargs.pop("on_run", None)
         self.interval = kwargs.pop("interval", 1.0)
-        self._runnable = kwargs.pop("runnable", False)
+        self.backoff = kwargs.pop("backoff", None)
         value = kwargs.pop("value", None)
         if keys := kwargs.pop("keys", {}):
             value = {   # Create a complex object (with sub-records).
@@ -54,6 +59,8 @@ class ArduinoCloudObject(SenmlRecord):
         self._updated = False
         self.on_write_scheduled = False
         self.timestamp = timestamp()
+        self.last_run = timestamp_ms()
+        self.runnable = any((self.on_run, self.on_read, self.on_write))
         callback = kwargs.pop("callback", self.senml_callback)
         for key in kwargs:  # kwargs should be empty by now, unless a wrong attr was used.
             raise TypeError(f"'{self.__class__.__name__}' got an unexpected keyword argument '{key}'")
@@ -83,10 +90,6 @@ class ArduinoCloudObject(SenmlRecord):
         if isinstance(self.value, dict):
             return all(r.initialized for r in self.value.values())
         return self.value is not None
-
-    @property
-    def runnable(self):
-        return self.on_read is not None or self.on_write is not None or self._runnable
 
     @SenmlRecord.value.setter
     def value(self, value):
@@ -152,12 +155,19 @@ class ArduinoCloudObject(SenmlRecord):
 
     async def run(self, client):
         while True:
-            if self.on_read is not None:
-                self.value = self.on_read(client)
-            if self.on_write is not None and self.on_write_scheduled:
-                self.on_write_scheduled = False
-                self.on_write(client, self if isinstance(self.value, dict) else self.value)
+            self.run_sync(client)
             await asyncio.sleep(self.interval)
+            if self.backoff is not None:
+                self.interval = min(self.interval * self.backoff, 5.0)
+
+    def run_sync(self, client):
+        if self.on_run is not None:
+            self.on_run(client)
+        if self.on_read is not None:
+            self.value = self.on_read(client)
+        if self.on_write is not None and self.on_write_scheduled:
+            self.on_write_scheduled = False
+            self.on_write(client, self if isinstance(self.value, dict) else self.value)
 
 
 class ArduinoCloudClient:
@@ -171,17 +181,20 @@ class ArduinoCloudClient:
             port=None,
             keepalive=10,
             ntp_server="pool.ntp.org",
-            ntp_timeout=3
+            ntp_timeout=3,
+            sync_mode=False
     ):
         self.tasks = {}
         self.records = {}
         self.thing_id = None
         self.keepalive = keepalive
         self.last_ping = timestamp()
+        self.last_run = timestamp()
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
-        self.started = False
         self.ntp_server = ntp_server
         self.ntp_timeout = ntp_timeout
+        self.async_mode = not sync_mode
+        self.connected = False
 
         if "pin" in ssl_params:
             try:
@@ -213,7 +226,7 @@ class ArduinoCloudClient:
 
         # Create MQTT client.
         self.mqtt = MQTTClient(
-                device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback
+            device_id, server, port, ssl_params, username, password, keepalive, self.mqtt_callback
         )
 
         # Add internal objects initialized by the cloud.
@@ -252,11 +265,12 @@ class ArduinoCloudClient:
     def create_task(self, name, coro, *args, **kwargs):
         if callable(coro):
             coro = coro(*args)
-        if self.started:
+        try:
+            asyncio.get_event_loop()
             self.tasks[name] = asyncio.create_task(coro)
             if log_level_enabled(logging.INFO):
                 logging.info(f"task: {name} created.")
-        else:
+        except Exception:
             # Defer task creation until there's a running event loop.
             self.tasks[name] = coro
 
@@ -272,13 +286,13 @@ class ArduinoCloudClient:
         # Register the ArduinoCloudObject
         self.records[aiotobj.name] = aiotobj
 
-        # Create a task for this object if it has any callbacks.
-        if aiotobj.runnable:
-            self.create_task(aiotobj.name, aiotobj.run, self)
-
         # Check if object needs to be initialized from the cloud.
         if not aiotobj.initialized and "r:m" not in self.records:
             self.register("r:m", value="getLastValues")
+
+        # Create a task for this object if it has any callbacks.
+        if self.async_mode and aiotobj.runnable:
+            self.create_task(aiotobj.name, aiotobj.run, self)
 
     def senml_generic_callback(self, record, **kwargs):
         # This callback catches all unknown/umatched sub/records that were not part of the pack.
@@ -303,76 +317,75 @@ class ArduinoCloudClient:
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
-    async def discovery_task(self, interval=0.100):
-        self.mqtt.subscribe(self.device_topic, qos=1)
-        while self.thing_id is None:
-            self.mqtt.check_msg()
-            if self.records.get("thing_id").value is not None:
-                self.thing_id = self.records.pop("thing_id").value
-                if not self.thing_id:  # Empty thing ID should not happen.
-                    raise (Exception("Device is not linked to a Thing ID."))
+    def ts_expired(self, record, ts):
+        return (ts - record.last_run) > int(record.interval * 1000)
 
-                self.topic_out = self.create_topic("e", "o")
-                self.mqtt.subscribe(self.create_topic("e", "i"))
-
-                if lastval_record := self.records.pop("r:m", None):
-                    lastval_record.add_to_pack(self.senmlpack)
-                    self.mqtt.subscribe(self.create_topic("shadow", "i"), qos=1)
-                    self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
-                logging.info("Device configured via discovery protocol.")
-            await asyncio.sleep(interval)
-        raise DoneException()
-
-    async def conn_task(self, interval=1.0, backoff=1.2):
+    def poll_connect(self, aiot=None):
         logging.info("Connecting to Arduino IoT cloud...")
-        while True:
-            try:
-                self.mqtt.connect()
-                break
-            except Exception as e:
-                if log_level_enabled(logging.WARNING):
-                    logging.warning(f"Connection failed {e}, retrying after {interval}s")
-                await asyncio.sleep(interval)
-                interval = min(interval * backoff, 4.0)
+        try:
+            self.mqtt.connect()
+        except Exception as e:
+            if log_level_enabled(logging.WARNING):
+                logging.warning(f"Connection failed {e}, retrying...")
+            return False
 
         if self.thing_id is None:
-            self.create_task("discovery", self.discovery_task)
+            self.mqtt.subscribe(self.device_topic, qos=1)
         else:
             self.mqtt.subscribe(self.create_topic("e", "i"))
-        self.create_task("mqtt_task", self.mqtt_task)
-        raise DoneException()
 
-    async def mqtt_task(self, interval=0.100):
-        while True:
-            self.mqtt.check_msg()
-            if self.thing_id is not None:
-                self.senmlpack.clear()
-                for record in self.records.values():
-                    if record.updated:
-                        record.add_to_pack(self.senmlpack, push=True)
-                if len(self.senmlpack._data):
-                    logging.debug("Pushing records to Arduino IoT cloud:")
-                    if log_level_enabled(logging.DEBUG):
-                        for record in self.senmlpack._data:
-                            logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
-                    self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=1)
-                    self.last_ping = timestamp()
-                elif self.keepalive and (timestamp() - self.last_ping) > self.keepalive:
-                    self.mqtt.ping()
-                    self.last_ping = timestamp()
-                    logging.debug("No records to push, sent a ping request.")
-            await asyncio.sleep(interval)
-        raise DoneException()
+        if self.async_mode:
+            if self.thing_id is None:
+                self.register("discovery", on_run=self.poll_discovery, interval=0.100)
+            self.register("mqtt_task", on_run=self.poll_mqtt, interval=0.100)
+            raise DoneException()
+        return True
 
-    async def run(self):
-        self.started = True
+    def poll_discovery(self, aiot=None):
+        self.mqtt.check_msg()
+        if self.records.get("thing_id").value is not None:
+            self.thing_id = self.records.pop("thing_id").value
+            if not self.thing_id:  # Empty thing ID should not happen.
+                raise Exception("Device is not linked to a Thing ID.")
+
+            self.topic_out = self.create_topic("e", "o")
+            self.mqtt.subscribe(self.create_topic("e", "i"))
+
+            if lastval_record := self.records.pop("r:m", None):
+                lastval_record.add_to_pack(self.senmlpack)
+                self.mqtt.subscribe(self.create_topic("shadow", "i"), qos=1)
+                self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
+            logging.info("Device configured via discovery protocol.")
+            if self.async_mode:
+                raise DoneException()
+
+    def poll_mqtt(self, aiot=None):
+        self.mqtt.check_msg()
+        if self.thing_id is not None:
+            self.senmlpack.clear()
+            for record in self.records.values():
+                if record.updated:
+                    record.add_to_pack(self.senmlpack, push=True)
+            if len(self.senmlpack._data):
+                logging.debug("Pushing records to Arduino IoT cloud:")
+                if log_level_enabled(logging.DEBUG):
+                    for record in self.senmlpack._data:
+                        logging.debug(f"  ==> record: {record.name} value: {str(record.value)[:48]}...")
+                self.mqtt.publish(self.topic_out, self.senmlpack.to_cbor(), qos=1)
+                self.last_ping = timestamp()
+            elif self.keepalive and (timestamp() - self.last_ping) > self.keepalive:
+                self.mqtt.ping()
+                self.last_ping = timestamp()
+                logging.debug("No records to push, sent a ping request.")
+
+    async def run(self, interval, backoff):
         # Creates tasks from coros here manually before calling
         # gather, so we can keep track of tasks in self.tasks dict.
         for name, coro in self.tasks.items():
             self.create_task(name, coro)
 
         # Create connection task.
-        self.create_task("conn_task", self.conn_task)
+        self.register("connection_task", on_run=self.poll_connect, interval=interval, backoff=backoff)
 
         while True:
             task_except = None
@@ -394,10 +407,57 @@ class ArduinoCloudClient:
                         elif task_except is not None and log_level_enabled(logging.ERROR):
                             logging.error(f"task: {name} raised exception: {str(task_except)}.")
                         if name == "mqtt_task":
-                            self.create_task("conn_task", self.conn_task)
+                            self.register(
+                                "connection_task",
+                                on_run=self.poll_connect,
+                                interval=interval,
+                                backoff=backoff
+                            )
                         break   # Break after the first task is removed.
                 except (CancelledError, InvalidStateError):
                     pass
 
-    def start(self):
-        asyncio.run(self.run())
+    def start(self, interval=1.0, backoff=1.2):
+        if self.async_mode:
+            asyncio.run(self.run(interval, backoff))
+        else:
+            # Synchronous mode.
+            while not self.poll_connect():
+                time.sleep(interval)
+                interval = min(interval * backoff, 5.0)
+
+            while self.thing_id is None:
+                self.poll_discovery()
+                time.sleep(0.100)
+
+            self.connected = True
+
+    def update(self):
+        if self.async_mode:
+            raise RuntimeError("This function can't be called in asyncio mode.")
+
+        if not self.connected:
+            try:
+                self.start()
+                self.connected = True
+            except Exception as e:
+                raise e
+
+        try:
+            ts = timestamp_ms()
+            for record in self.records.values():
+                if record.runnable and self.ts_expired(record, ts):
+                    record.run_sync(self)
+                    record.last_run = ts
+        except Exception as e:
+            self.records.pop(record.name)
+            if log_level_enabled(logging.ERROR):
+                logging.error(f"task: {record.name} raised exception: {str(e)}.")
+
+        try:
+            self.poll_mqtt()
+        except Exception as e:
+            self.connected = False
+            if log_level_enabled(logging.WARNING):
+                logging.warning(f"Connection lost {e}")
+            raise e

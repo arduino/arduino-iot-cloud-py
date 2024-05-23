@@ -4,10 +4,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import asyncio
 import binascii
 from .ucloud import ArduinoCloudClient  # noqa
 from .ucloud import ArduinoCloudObject
+from .ucloud import ArduinoCloudObject as Task  # noqa
 from .ucloud import timestamp
 
 
@@ -29,33 +29,6 @@ CADATA = binascii.unhexlify(
     b"100dd320bfe102969b6b05d8022100ead9d9da5acd12529709a8ed660fe1"
     b"8d6444ffe82217304ff2b89aafca8ecf"
 )
-
-async def coro():  # noqa
-    pass
-
-
-def is_async(obj):
-    if hasattr(asyncio, "iscoroutinefunction"):
-        return asyncio.iscoroutinefunction(obj)
-    else:
-        return isinstance(obj, type(coro))
-
-
-class Task(ArduinoCloudObject):
-    def __init__(self, name, **kwargs):
-        kwargs.update({("runnable", True)})  # Force task creation.
-        self.on_run = kwargs.pop("on_run", None)
-        if not callable(self.on_run):
-            raise TypeError("Expected a callable object")
-        super().__init__(name, **kwargs)
-
-    async def run(self, aiot):
-        if is_async(self.on_run):
-            await self.on_run(aiot)
-        else:
-            while True:
-                self.on_run(aiot)
-                await asyncio.sleep(self.interval)
 
 
 class Location(ArduinoCloudObject):
@@ -80,24 +53,22 @@ class DimmedLight(ArduinoCloudObject):
 
 class Schedule(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
-        kwargs.update({("runnable", True)})  # Force task creation.
+        kwargs.update({("on_run", self.on_run)})
         self.on_active = kwargs.pop("on_active", None)
         # Uncomment to allow the schedule to change in runtime.
         # kwargs["on_write"] = kwargs.get("on_write", lambda aiot, value: None)
         self.active = False
         super().__init__(name, keys={"frm", "to", "len", "msk"}, **kwargs)
 
-    async def run(self, aiot):
-        while True:
-            if self.initialized:
-                ts = timestamp() + aiot.get("tz_offset", 0)
-                if ts > self.frm and ts < (self.frm + self.len):
-                    if not self.active and self.on_active is not None:
-                        self.on_active(aiot, self.value)
-                    self.active = True
-                else:
-                    self.active = False
-            await asyncio.sleep(self.interval)
+    def on_run(self, aiot):
+        if self.initialized:
+            ts = timestamp() + aiot.get("tz_offset", 0)
+            if ts > self.frm and ts < (self.frm + self.len):
+                if not self.active and self.on_active is not None:
+                    self.on_active(aiot, self.value)
+                self.active = True
+            else:
+                self.active = False
 
 
 class Television(ArduinoCloudObject):
