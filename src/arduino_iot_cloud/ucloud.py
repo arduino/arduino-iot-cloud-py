@@ -7,10 +7,10 @@
 import time
 import sys
 import logging
+import cbor2
 from senml import SenmlPack
 from senml import SenmlRecord
 from arduino_iot_cloud.umqtt import MQTTClient
-
 import asyncio
 from asyncio import CancelledError
 try:
@@ -19,6 +19,10 @@ except (ImportError, AttributeError):
     # MicroPython doesn't have this exception
     class InvalidStateError(Exception):
         pass
+try:
+    from arduino_iot_cloud._version import __version__
+except (ImportError, AttributeError):
+    __version__ = "1.3.0"
 
 # Server/port for basic auth.
 _DEFAULT_SERVER = "iot.arduino.cc"
@@ -213,6 +217,7 @@ class ArduinoCloudClient:
             password = bytes(password, "utf-8")
 
         self.device_topic = b"/a/d/" + device_id + b"/e/i"
+        self.command_topic = b"/a/d/" + device_id + b"/c/up"
 
         # Update RTC from NTP server on MicroPython.
         self.update_systime()
@@ -355,6 +360,10 @@ class ArduinoCloudClient:
                 lastval_record.add_to_pack(self.senmlpack)
                 self.mqtt.subscribe(self.create_topic("shadow", "i"), qos=1)
                 self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
+
+            # Push library version and mode.
+            libv = "%s-%s" % (__version__, "async" if self.async_mode else "sync")
+            self.mqtt.publish(self.command_topic, cbor2.dumps(cbor2.CBORTag(67328, [libv])), qos=1)
             logging.info("Device configured via discovery protocol.")
             if self.async_mode:
                 raise DoneException()
