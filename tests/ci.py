@@ -74,6 +74,7 @@ if __name__ == "__main__":
             device_id=os.getenv("DEVICE_ID"),
             ssl_params={
                 "pin": "1234",
+                "use_hsm": True,
                 "keyfile": "pkcs11:token=arduino",
                 "certfile": "pkcs11:token=arduino",
                 "ca_certs": "ca-root.pem",
