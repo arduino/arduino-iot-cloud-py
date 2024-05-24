@@ -3,9 +3,11 @@
 # https://creativecommons.org/publicdomain/zero/1.0/
 import logging
 import os
+import time
 import sys
 import asyncio
 from arduino_iot_cloud import ArduinoCloudClient
+from arduino_iot_cloud import Task
 import argparse
 
 
@@ -18,6 +20,16 @@ def on_value_changed(client, value):
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(exception_handler)
     sys.exit(0)
+
+
+def wdt_task(client, ts=[None]):
+    if ts[0] is None:
+        ts[0] = time.time()
+    if time.time() - ts[0] > 5:
+        loop = asyncio.get_event_loop()
+        loop.set_exception_handler(exception_handler)
+        logging.error("Timeout waiting for variable")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
@@ -34,6 +46,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-f", "--file-auth", action="store_true", help="Use key/cert files"
+    )
+    parser.add_argument(
+        "-s", "--sync", action="store_true",  help="Run in synchronous mode"
     )
     args = parser.parse_args()
 
@@ -56,6 +71,7 @@ if __name__ == "__main__":
             device_id=os.getenv("DEVICE_ID"),
             username=os.getenv("DEVICE_ID"),
             password=os.getenv("SECRET_KEY"),
+            sync_mode=args.sync,
         )
     elif args.file_auth:
         import ssl
@@ -67,6 +83,7 @@ if __name__ == "__main__":
                 "ca_certs": "ca-root.pem",
                 "cert_reqs": ssl.CERT_REQUIRED,
             },
+            sync_mode=args.sync,
         )
     elif args.crypto_device:
         import ssl
@@ -82,16 +99,17 @@ if __name__ == "__main__":
                 "engine_path": "/lib/x86_64-linux-gnu/engines-3/libpkcs11.so",
                 "module_path": "/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so",
             },
+            sync_mode=args.sync,
         )
     else:
         parser.print_help()
         sys.exit(1)
 
     # Register cloud objects.
-    # Note: The following objects must be created first in the dashboard and linked to the device.
-    # This cloud object is initialized with its last known value from the cloud. When this object is updated
-    # from the dashboard, the on_switch_changed function is called with the client object and the new value.
+    # When this object gets initialized from the cloud the test is complete.
     client.register("answer", value=None, on_write=on_value_changed)
+    # This task will exist with failure after a timeout.
+    client.register(Task("wdt_task", on_run=wdt_task, interval=1.0))
 
     # Start the Arduino IoT cloud client.
     client.start()

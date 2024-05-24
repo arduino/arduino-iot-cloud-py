@@ -63,7 +63,7 @@ class ArduinoCloudObject(SenmlRecord):
         self._updated = False
         self.on_write_scheduled = False
         self.timestamp = timestamp()
-        self.last_run = timestamp_ms()
+        self.last_poll = timestamp_ms()
         self.runnable = any((self.on_run, self.on_read, self.on_write))
         callback = kwargs.pop("callback", self.senml_callback)
         for key in kwargs:  # kwargs should be empty by now, unless a wrong attr was used.
@@ -193,7 +193,6 @@ class ArduinoCloudClient:
         self.thing_id = None
         self.keepalive = keepalive
         self.last_ping = timestamp()
-        self.last_run = timestamp()
         self.senmlpack = SenmlPack("", self.senml_generic_callback)
         self.ntp_server = ntp_server
         self.ntp_timeout = ntp_timeout
@@ -322,8 +321,20 @@ class ArduinoCloudClient:
         self.senmlpack.from_cbor(message)
         self.senmlpack.clear()
 
-    def ts_expired(self, record, ts):
-        return (ts - record.last_run) > int(record.interval * 1000)
+    def ts_expired(self, ts, last_ts_ms, interval_s):
+        return last_ts_ms == 0 or (ts - last_ts_ms) > int(interval_s * 1000)
+
+    def poll_records(self):
+        ts = timestamp_ms()
+        try:
+            for record in self.records.values():
+                if record.runnable and self.ts_expired(ts, record.last_poll, record.interval):
+                    record.run_sync(self)
+                    record.last_poll = ts
+        except Exception as e:
+            self.records.pop(record.name)
+            if log_level_enabled(logging.ERROR):
+                logging.error(f"task: {record.name} raised exception: {str(e)}.")
 
     def poll_connect(self, aiot=None):
         logging.info("Connecting to Arduino IoT cloud...")
@@ -332,7 +343,7 @@ class ArduinoCloudClient:
         except Exception as e:
             if log_level_enabled(logging.WARNING):
                 logging.warning(f"Connection failed {e}, retrying...")
-            return False
+            return
 
         if self.thing_id is None:
             self.mqtt.subscribe(self.device_topic, qos=1)
@@ -341,10 +352,10 @@ class ArduinoCloudClient:
 
         if self.async_mode:
             if self.thing_id is None:
-                self.register("discovery", on_run=self.poll_discovery, interval=0.100)
+                self.register("discovery", on_run=self.poll_discovery, interval=0.200)
             self.register("mqtt_task", on_run=self.poll_mqtt, interval=0.100)
             raise DoneException()
-        return True
+        self.connected = True
 
     def poll_discovery(self, aiot=None):
         self.mqtt.check_msg()
@@ -429,17 +440,26 @@ class ArduinoCloudClient:
     def start(self, interval=1.0, backoff=1.2):
         if self.async_mode:
             asyncio.run(self.run(interval, backoff))
-        else:
-            # Synchronous mode.
-            while not self.poll_connect():
-                time.sleep(interval)
-                interval = min(interval * backoff, 5.0)
+            return
 
-            while self.thing_id is None:
+        last_conn_ms = 0
+        last_disc_ms = 0
+
+        while True:
+            ts = timestamp_ms()
+            if not self.connected and self.ts_expired(ts, last_conn_ms, interval):
+                self.poll_connect()
+                if last_conn_ms != 0:
+                    interval = min(interval * backoff, 5.0)
+                last_conn_ms = ts
+
+            if self.connected and self.thing_id is None and self.ts_expired(ts, last_disc_ms, 0.250):
                 self.poll_discovery()
-                time.sleep(0.100)
+                last_disc_ms = ts
 
-            self.connected = True
+            if self.connected and self.thing_id is not None:
+                break
+            self.poll_records()
 
     def update(self):
         if self.async_mode:
@@ -448,20 +468,10 @@ class ArduinoCloudClient:
         if not self.connected:
             try:
                 self.start()
-                self.connected = True
             except Exception as e:
                 raise e
 
-        try:
-            ts = timestamp_ms()
-            for record in self.records.values():
-                if record.runnable and self.ts_expired(record, ts):
-                    record.run_sync(self)
-                    record.last_run = ts
-        except Exception as e:
-            self.records.pop(record.name)
-            if log_level_enabled(logging.ERROR):
-                logging.error(f"task: {record.name} raised exception: {str(e)}.")
+        self.poll_records()
 
         try:
             self.poll_mqtt()
@@ -469,4 +479,3 @@ class ArduinoCloudClient:
             self.connected = False
             if log_level_enabled(logging.WARNING):
                 logging.warning(f"Connection lost {e}")
-            raise e
