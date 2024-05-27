@@ -1,5 +1,5 @@
 # Arduino IoT Cloud Python client ☁️🐍☁️
-This is a Python client for the Arduino IoT cloud, which runs on both CPython and MicroPython. The client supports basic and advanced authentication methods, and provides a user-friendly API that allows the user to connect to the cloud, and create and link local objects to cloud objects with a just a few lines of code.
+This is a Python client for the Arduino IoT Cloud, which runs on both CPython and MicroPython. The client supports basic and advanced authentication methods, synchronous and asynchronous modes and provides a user-friendly API that allows users to connect to the cloud and create and link local objects to cloud objects with just a few lines of code.
 
 ## Minimal Example
 The following basic example shows how to connect to the Arduino IoT cloud using basic username and password authentication, and control an LED from a dashboard's switch widget.
@@ -39,6 +39,23 @@ WIFI_SSID  = ""  # WiFi network SSID (for MicroPython)
 WIFI_PASS  = ""  # WiFi network key  (for MicroPython)
 DEVICE_ID  = "" # Provided by Arduino cloud when creating a device.
 SECRET_KEY = "" # Provided by Arduino cloud when creating a device.
+```
+
+Note that by default, the client runs in asynchronous mode. In this mode, the client takes runs an asyncio loop that updates tasks and records, polls networking events, etc. The client also supports a synchronous mode, which requires periodic client polling. To run the client in synchronous mode, pass `sync_mode=True` when creating a client object and call `client.update()` periodically after connecting. For example:
+
+```Python
+# Run the client in synchronous mode.
+client = ArduinoCloudClient(device_id=DEVICE_ID, ..., sync_mode=True)
+....
+client.register("led", value=None)
+....
+# In synchronous mode, this function returns immediately after connecting to the cloud.
+client.start()
+
+# Update the client periodically.
+while True:
+    client.update()
+    time.sleep(0.100)
 ```
 
 For more detailed examples and advanced API features, please see the [examples](https://github.com/arduino/arduino-iot-cloud-py/tree/main/examples).
