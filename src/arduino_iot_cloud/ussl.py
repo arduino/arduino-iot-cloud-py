@@ -7,6 +7,8 @@
 # SSL module with m2crypto backend for HSM support.
 
 import ssl
+import sys
+import logging
 
 pkcs11 = None
 
@@ -29,7 +31,7 @@ def wrap_socket(sock, ssl_params={}):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         if hasattr(ctx, "set_default_verify_paths"):
             ctx.set_default_verify_paths()
-        if verify != ssl.CERT_REQUIRED:
+        if hasattr(ctx, "check_hostname") and verify != ssl.CERT_REQUIRED:
             ctx.check_hostname = False
         ctx.verify_mode = verify
         if keyfile is not None and certfile is not None:
@@ -41,7 +43,11 @@ def wrap_socket(sock, ssl_params={}):
         return ctx.wrap_socket(sock, server_hostname=hostname)
     else:
         # Use M2Crypto to load key and cert from HSM.
-        from M2Crypto import m2, SSL, Engine
+        try:
+            from M2Crypto import m2, SSL, Engine
+        except (ImportError, AttributeError):
+            logging.error("The m2crypto module is required to use HSM.")
+            sys.exit(1)
 
         global pkcs11
         if pkcs11 is None:
