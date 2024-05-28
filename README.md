@@ -41,7 +41,7 @@ DEVICE_ID  = "" # Provided by Arduino cloud when creating a device.
 SECRET_KEY = "" # Provided by Arduino cloud when creating a device.
 ```
 
-Note that by default, the client runs in asynchronous mode. In this mode, the client takes runs an asyncio loop that updates tasks and records, polls networking events, etc. The client also supports a synchronous mode, which requires periodic client polling. To run the client in synchronous mode, pass `sync_mode=True` when creating a client object and call `client.update()` periodically after connecting. For example:
+Note that by default, the client runs in asynchronous mode. In this mode, the client runs an asyncio loop that updates tasks and records, polls networking events, etc. The client also supports a synchronous mode, which requires periodic client polling. To run the client in synchronous mode, pass `sync_mode=True` when creating a client object and call `client.update()` periodically after connecting. For example:
 
 ```Python
 # Run the client in synchronous mode.
