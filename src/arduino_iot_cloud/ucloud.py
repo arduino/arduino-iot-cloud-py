@@ -5,7 +5,6 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import time
-import sys
 import logging
 import cbor2
 from senml import SenmlPack
@@ -22,7 +21,7 @@ except (ImportError, AttributeError):
 try:
     from arduino_iot_cloud._version import __version__
 except (ImportError, AttributeError):
-    __version__ = "1.3.0"
+    __version__ = "1.3.1"
 
 # Server/port for basic auth.
 _DEFAULT_SERVER = "iot.arduino.cc"
@@ -40,7 +39,7 @@ def timestamp():
 
 
 def timestamp_ms():
-    return time.time_ns()//1000000
+    return time.time_ns() // 1000000
 
 
 def log_level_enabled(level):
@@ -198,14 +197,6 @@ class ArduinoCloudClient:
         self.ntp_timeout = ntp_timeout
         self.async_mode = not sync_mode
         self.connected = False
-
-        if "pin" in ssl_params:
-            try:
-                # Use M2Crypto to load key and cert from HSM.
-                import M2Crypto  # noqa
-            except (ImportError, AttributeError):
-                logging.error("The m2crypto module is required to use HSM.")
-                sys.exit(1)
 
         # Convert args to bytes if they are passed as strings.
         if isinstance(device_id, str):
@@ -372,9 +363,11 @@ class ArduinoCloudClient:
                 self.mqtt.subscribe(self.create_topic("shadow", "i"), qos=1)
                 self.mqtt.publish(self.create_topic("shadow", "o"), self.senmlpack.to_cbor(), qos=1)
 
-            # Push library version and mode.
-            libv = "%s-%s" % (__version__, "async" if self.async_mode else "sync")
-            self.mqtt.publish(self.command_topic, cbor2.dumps(cbor2.CBORTag(67328, [libv])), qos=1)
+            if hasattr(cbor2, "dumps"):
+                # Push library version and mode.
+                libv = "%s-%s" % (__version__, "async" if self.async_mode else "sync")
+                # Note we have to add the tag manually because python-ecosys's cbor2 doesn't suppor CBORTags.
+                self.mqtt.publish(self.command_topic, b"\xda\x00\x01\x07\x00" + cbor2.dumps([libv]), qos=1)
             logging.info("Device configured via discovery protocol.")
             if self.async_mode:
                 raise DoneException()

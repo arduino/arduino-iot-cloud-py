@@ -43,8 +43,8 @@ def user_task(client):
 if __name__ == "__main__":
     # Parse command line args.
     parser = argparse.ArgumentParser(description="arduino_iot_cloud.py")
-    parser.add_argument("-d", "--debug", action="store_true",  help="Enable debugging messages")
-    parser.add_argument("-s", "--sync", action="store_true",  help="Run in synchronous mode")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debugging messages")
+    parser.add_argument("-s", "--sync", action="store_true", help="Run in synchronous mode")
     args = parser.parse_args()
 
     # Assume the host has an active Internet connection.
