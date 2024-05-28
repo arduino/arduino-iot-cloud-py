@@ -48,7 +48,7 @@ if __name__ == "__main__":
         "-f", "--file-auth", action="store_true", help="Use key/cert files"
     )
     parser.add_argument(
-        "-s", "--sync", action="store_true",  help="Run in synchronous mode"
+        "-s", "--sync", action="store_true", help="Run in synchronous mode"
     )
     args = parser.parse_args()
 
