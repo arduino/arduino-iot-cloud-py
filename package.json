@@ -6,7 +6,7 @@
       ["arduino_iot_cloud/ussl.py", "github:arduino/arduino-iot-cloud-py/src/arduino_iot_cloud/ussl.py"]
     ],
     "deps": [
-      ["senml", "0.1.0"]
+      ["senml", "0.1.0"],
       ["logging", "0.6.0"]
     ],
     "version": "0.0.5"
