@@ -10,10 +10,10 @@ import cbor2
 from senml import SenmlPack
 from senml import SenmlRecord
 from arduino_iot_cloud.umqtt import MQTTClient
-import asyncio
-from asyncio import CancelledError
+import uasyncio
+from uasyncio import CancelledError
 try:
-    from asyncio import InvalidStateError
+    from uasyncio import InvalidStateError
 except (ImportError, AttributeError):
     # MicroPython doesn't have this exception
     class InvalidStateError(Exception):
@@ -159,7 +159,7 @@ class ArduinoCloudObject(SenmlRecord):
     async def run(self, client):
         while True:
             self.run_sync(client)
-            await asyncio.sleep(self.interval)
+            await uasyncio.sleep(self.interval)
             if self.backoff is not None:
                 self.interval = min(self.interval * self.backoff, 5.0)
 
@@ -261,8 +261,8 @@ class ArduinoCloudClient:
         if callable(coro):
             coro = coro(*args)
         try:
-            asyncio.get_event_loop()
-            self.tasks[name] = asyncio.create_task(coro)
+            uasyncio.get_event_loop()
+            self.tasks[name] = uasyncio.create_task(coro)
             if log_level_enabled(logging.INFO):
                 logging.info(f"task: {name} created.")
         except Exception:
@@ -403,7 +403,7 @@ class ArduinoCloudClient:
         while True:
             task_except = None
             try:
-                await asyncio.gather(*self.tasks.values(), return_exceptions=False)
+                await uasyncio.gather(*self.tasks.values(), return_exceptions=False)
                 break   # All tasks are done, not likely.
             except Exception as e:
                 task_except = e
@@ -432,7 +432,7 @@ class ArduinoCloudClient:
 
     def start(self, interval=1.0, backoff=1.2):
         if self.async_mode:
-            asyncio.run(self.run(interval, backoff))
+            uasyncio.run(self.run(interval, backoff))
             return
 
         last_conn_ms = 0
