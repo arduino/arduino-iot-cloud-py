@@ -21,7 +21,7 @@ except (ImportError, AttributeError):
 try:
     from arduino_iot_cloud._version import __version__
 except (ImportError, AttributeError):
-    __version__ = "1.3.2"
+    __version__ = "1.3.3"
 
 # Server/port for basic auth.
 _DEFAULT_SERVER = "iot.arduino.cc"
