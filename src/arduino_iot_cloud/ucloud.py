@@ -53,6 +53,7 @@ class ArduinoCloudObject(SenmlRecord):
         self.on_run = kwargs.pop("on_run", None)
         self.interval = kwargs.pop("interval", 1.0)
         self.backoff = kwargs.pop("backoff", None)
+        self.args = kwargs.pop("args", None)
         value = kwargs.pop("value", None)
         if keys := kwargs.pop("keys", {}):
             value = {   # Create a complex object (with sub-records).
@@ -165,7 +166,7 @@ class ArduinoCloudObject(SenmlRecord):
 
     def run_sync(self, client):
         if self.on_run is not None:
-            self.on_run(client)
+            self.on_run(client, self.args)
         if self.on_read is not None:
             self.value = self.on_read(client)
         if self.on_write is not None and self.on_write_scheduled:
@@ -327,7 +328,7 @@ class ArduinoCloudClient:
             if log_level_enabled(logging.ERROR):
                 logging.error(f"task: {record.name} raised exception: {str(e)}.")
 
-    def poll_connect(self, aiot=None):
+    def poll_connect(self, aiot=None, args=None):
         logging.info("Connecting to Arduino IoT cloud...")
         try:
             self.mqtt.connect()
@@ -343,12 +344,12 @@ class ArduinoCloudClient:
 
         if self.async_mode:
             if self.thing_id is None:
-                self.register("discovery", on_run=self.poll_discovery, interval=0.200)
-            self.register("mqtt_task", on_run=self.poll_mqtt, interval=0.100)
+                self.register("discovery", on_run=self.poll_discovery, interval=0.500)
+            self.register("mqtt_task", on_run=self.poll_mqtt, interval=1.0)
             raise DoneException()
         self.connected = True
 
-    def poll_discovery(self, aiot=None):
+    def poll_discovery(self, aiot=None, args=None):
         self.mqtt.check_msg()
         if self.records.get("thing_id").value is not None:
             self.thing_id = self.records.pop("thing_id").value
@@ -372,7 +373,7 @@ class ArduinoCloudClient:
             if self.async_mode:
                 raise DoneException()
 
-    def poll_mqtt(self, aiot=None):
+    def poll_mqtt(self, aiot=None, args=None):
         self.mqtt.check_msg()
         if self.thing_id is not None:
             self.senmlpack.clear()
@@ -405,6 +406,8 @@ class ArduinoCloudClient:
             try:
                 await asyncio.gather(*self.tasks.values(), return_exceptions=False)
                 break   # All tasks are done, not likely.
+            except KeyboardInterrupt as e:
+                raise e
             except Exception as e:
                 task_except = e
                 pass    # import traceback; traceback.print_exc()

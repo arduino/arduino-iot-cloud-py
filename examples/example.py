@@ -31,7 +31,7 @@ def on_clight_changed(client, clight):
     logging.info(f"ColoredLight changed. Swi: {clight.swi} Bri: {clight.bri} Sat: {clight.sat} Hue: {clight.hue}")
 
 
-def user_task(client):
+def user_task(client, args):
     # NOTE: this function should not block.
     # This is a user-defined task that updates the colored light. Note any registered
     # cloud object can be accessed using the client object passed to this function.

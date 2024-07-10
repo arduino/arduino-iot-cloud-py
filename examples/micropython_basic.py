@@ -32,7 +32,7 @@ def on_clight_changed(client, clight):
     logging.info(f"ColoredLight changed. Swi: {clight.swi} Bri: {clight.bri} Sat: {clight.sat} Hue: {clight.hue}")
 
 
-def user_task(client):
+def user_task(client, args):
     # NOTE: this function should not block.
     # This is a user-defined task that updates the colored light. Note any registered
     # cloud object can be accessed using the client object passed to this function.
@@ -41,8 +41,7 @@ def user_task(client):
     client["clight"].bri = round(uniform(0, 100), 1)
 
 
-def wdt_task(client):
-    global wdt
+def wdt_task(client, wdt):
     # Update the WDT to prevent it from resetting the system
     wdt.feed()
 
@@ -130,7 +129,7 @@ if __name__ == "__main__":
             from machine import WDT
             # Enable the WDT with a timeout of 5s (1s is the minimum)
             wdt = WDT(timeout=7500)
-            client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
+            client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0, args=wdt))
         except (ImportError, AttributeError):
             pass
 

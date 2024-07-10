@@ -60,7 +60,7 @@ class Schedule(ArduinoCloudObject):
         self.active = False
         super().__init__(name, keys={"frm", "to", "len", "msk"}, **kwargs)
 
-    def on_run(self, aiot):
+    def on_run(self, aiot, args=None):
         if self.initialized:
             ts = timestamp() + aiot.get("tz_offset", 0)
             if ts > self.frm and ts < (self.frm + self.len):
@@ -149,7 +149,7 @@ class Television(ArduinoCloudObject):
         )
 
 
-def async_wifi_connection(client=None, connecting=[False]):
+def async_wifi_connection(client=None, args=None, connecting=[False]):
     import time
     import network
     import logging
