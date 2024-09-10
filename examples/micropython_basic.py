@@ -18,8 +18,8 @@ from secrets import WIFI_PASS
 from secrets import DEVICE_ID
 from secrets import SECRET_KEY  # noqa
 
-KEY_PATH = "key.der"
-CERT_PATH = "cert.der"
+KEY_PATH = "key.der"  # noqa
+CERT_PATH = "cert.der"  # noqa
 
 
 def on_switch_changed(client, value):
@@ -76,13 +76,15 @@ if __name__ == "__main__":
     # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
     client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY, sync_mode=False)
 
-    # Alternatively, the client also supports key and certificate-based authentication. To use this
-    # mode, set "keyfile" and "certfile", and the CA certificate (if any) in "ssl_params".
-    # Note that for MicroPython, the key and cert files must be stored in DER format on the filesystem.
+    # Alternatively, the client supports key and certificate-based authentication. To use this
+    # mode, set "keyfile" and "certfile", and specify the CA certificate (if any) in "ssl_params".
+    # Secure elements, which can be used to store the key and certificate, are also supported.
+    # To use secure elements, provide the key and certificate URIs (in provider:token format) and
+    # set the token's PIN (if applicable). For example:
     # client = ArduinoCloudClient(
     #     device_id=DEVICE_ID,
     #     ssl_params={
-    #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA,
+    #         "pin": "1234", "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA,
     #         "verify_mode": ssl.CERT_REQUIRED, "server_hostname" : "iot.arduino.cc"
     #     },
     #     sync_mode=False,

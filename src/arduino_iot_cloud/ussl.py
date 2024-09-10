@@ -9,12 +9,20 @@
 import ssl
 import sys
 import logging
+import binascii
 
 pkcs11 = None
 
 # Default engine and provider.
 _ENGINE_PATH = "/usr/lib/engines-3/libpkcs11.so"
 _MODULE_PATH = "/usr/lib/softhsm/libsofthsm2.so"
+
+# Reference EC key for NXP's PlugNTrust
+_EC_REF_KEY = binascii.unhexlify(
+    b"3041020100301306072a8648ce3d020106082a8648ce3d03010704273025"
+    b"0201010420100000000000000000000000000000000000ffffffffa5a6b5"
+    b"b6a5a6b5b61000"
+)
 
 
 def wrap_socket(sock, ssl_params={}):
@@ -25,9 +33,19 @@ def wrap_socket(sock, ssl_params={}):
     ciphers = ssl_params.get("ciphers", None)
     verify = ssl_params.get("verify_mode", ssl.CERT_NONE)
     hostname = ssl_params.get("server_hostname", None)
-    use_hsm = ssl_params.get("use_hsm", False)
+    micropython = sys.implementation.name == "micropython"
 
-    if not use_hsm:
+    if keyfile is not None and "token" in keyfile and micropython:
+        # Create a reference EC key for NXP EdgeLock device.
+        objid = int(keyfile.split("=")[1], 16).to_bytes(4, "big")
+        keyfile = _EC_REF_KEY[0:53] + objid + _EC_REF_KEY[57:]
+        # Load the certificate from the secure element (when supported).
+        # import cryptoki
+        # with cryptoki.open() as token:
+        #     cert = token.read(0x65, 412)
+
+    if keyfile is None or "token" not in keyfile:
+        # Use MicroPython/CPython SSL to wrap socket.
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         if hasattr(ctx, "set_default_verify_paths"):
             ctx.set_default_verify_paths()
@@ -39,7 +57,7 @@ def wrap_socket(sock, ssl_params={}):
         if ciphers is not None:
             ctx.set_ciphers(ciphers)
         if cafile is not None or cadata is not None:
-            ctx.load_verify_locations(cafile, cadata)
+            ctx.load_verify_locations(cafile=cafile, cadata=cadata)
         return ctx.wrap_socket(sock, server_hostname=hostname)
     else:
         # Use M2Crypto to load key and cert from HSM.
