@@ -75,12 +75,13 @@ if __name__ == "__main__":
         )
     elif args.file_auth:
         import ssl
+        fmt = "der" if sys.implementation.name == "micropython" else "pem"
         client = ArduinoCloudClient(
             device_id=os.getenv("DEVICE_ID"),
             ssl_params={
-                "keyfile": "key.pem",
-                "certfile": "cert.pem",
-                "ca_certs": "ca-root.pem",
+                "keyfile": f"key.{fmt}",
+                "certfile": f"cert.{fmt}",
+                "ca_certs": f"ca-root.{fmt}",
                 "cert_reqs": ssl.CERT_REQUIRED,
             },
             sync_mode=args.sync,
