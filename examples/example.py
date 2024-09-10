@@ -63,15 +63,15 @@ if __name__ == "__main__":
     # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
     client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY, sync_mode=args.sync)
 
-    # Alternatively, the client also supports key and certificate-based authentication. To use this
-    # mode, set "keyfile" and "certfile", and the CA certificate (if any) in "ssl_params".
-    # Furthermore, secure elements, which can be used to store the key and cert, are also supported.
-    # To secure elements, set "use_hsm" to True in "ssl_params" and set the token's "pin" if any.
+    # Alternatively, the client supports key and certificate-based authentication. To use this
+    # mode, set "keyfile" and "certfile", and specify the CA certificate (if any) in "ssl_params".
+    # Secure elements, which can be used to store the key and certificate, are also supported.
+    # To use secure elements, provide the key and certificate URIs (in provider:token format) and
+    # set the token's PIN (if applicable). For example:
     # client = ArduinoCloudClient(
     #     device_id=DEVICE_ID,
     #     ssl_params={
-    #         "use_hsm": True, "pin": "1234",
-    #         "keyfile": KEY_PATH, "certfile": CERT_PATH, "cafile": CA_PATH,
+    #         "pin": "1234", "keyfile": KEY_PATH, "certfile": CERT_PATH, "cafile": CA_PATH,
     #         "verify_mode": ssl.CERT_REQUIRED, "server_hostname" : "iot.arduino.cc"
     #     },
     #     sync_mode=args.sync,
