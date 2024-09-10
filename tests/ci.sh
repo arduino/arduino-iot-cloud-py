@@ -57,4 +57,9 @@ ci_configure_softhsm() {
 	softhsm2-util --init-token --slot 0 --label "arduino" --pin 1234 --so-pin 1234
 	p11tool --provider=${PROVIDER} --login --set-pin=1234 --write ${TOKEN_URI} --load-privkey key.pem --label "mykey"
 	p11tool --provider=${PROVIDER} --login --set-pin=1234 --write ${TOKEN_URI} --load-certificate cert.pem --label "mycert"
+
+    # Convert to DER for MicroPython.
+    openssl ec -in key.pem -out key.der -outform DER
+    openssl x509 -in cert.pem -out cert.der -outform DER
+    openssl x509 -in ca-root.pem -out ca-root.der -outform DER
 }

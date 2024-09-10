@@ -63,7 +63,7 @@ jobs:
         pip install --user dist/arduino_iot_cloud-*.whl
         pip install --target=${HOME}/.micropython/lib dist/arduino_iot_cloud-*.whl
 
-    - name: '🔑 Configure soft crypto device'
+    - name: '🔑 Configure secure element'
       env:
         KEY_PEM: ${{ secrets.KEY_PEM }}
         CERT_PEM: ${{ secrets.CERT_PEM }}
@@ -92,7 +92,6 @@ jobs:
       run: |
         python tests/ci.py --file-auth
 
-
     - name: '☁️  Connect to IoT cloud (CPython / Crypto Auth / Async)'
       env:
         DEVICE_ID: ${{ secrets.DEVICE_ID2 }}
@@ -118,3 +117,12 @@ jobs:
         export PATH="${HOME}/cache/bin:${PATH}"
         micropython -c "import sys; print(sys.path)"
         micropython tests/ci.py --basic-auth --sync
+
+    - name: '☁️  Connect to IoT cloud (MicroPython / Key-Cert Auth / Async)'
+      env:
+        DEVICE_ID: ${{ secrets.DEVICE_ID2 }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      run: |
+        export PATH="${HOME}/cache/bin:${PATH}"
+        micropython -c "import sys; print(sys.path)"
+        micropython tests/ci.py --file-auth
