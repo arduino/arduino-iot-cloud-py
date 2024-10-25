@@ -111,17 +111,25 @@ python examples/example.py
 ```
 
 ## Testing on MicroPython
-MicroPython currently does Not support secure elements. The username and password can be used, or the key and cert files must be stored in DER format on the filesystem. To test the client on MicroPython, first convert the key and certificate to DER, using the following commands, then copy the files to the internal storage.
-
-#### Convert key and certificate to `.DER`
+MicroPython supports both modes of authentication: basic mode, using a username and password, and mTLS with the key and certificate stored on the filesystem or a secure element (for provisioned boards). To use key and certificate files stored on the filesystem, they must first be converted to DER format. The following commands can be used to convert from PEM to DER:
 ```bash
 openssl ec -in key.pem -out key.der -outform DER
 openssl x509 -in cert.pem -out cert.der -outform DER
 ```
 
-#### Run the MicroPython example script
-* Set `KEY_PATH`, `CERT_PATH`, to key and certificate DER paths respectively.
-* run `examples/micropython.py`
+In this case `KEY_PATH`, `CERT_PATH`, can be set to the key and certificate DER paths, respectively:
+```Python
+KEY_PATH = "path/to/key.der"
+CERT_PATH = "path/to/cert.der"
+```
+
+Alternatively, if the key and certificate are stored on the SE, their URIs can be specified in the following format:
+```Python
+KEY_PATH = "se05x:token=0x00000064"
+CERT_PATH = "se05x:token=0x00000065"
+```
+
+With the key and certificate set, the example can be run with the following command `examples/micropython_advanced.py`
 
 ## Useful links
 

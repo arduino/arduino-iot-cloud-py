@@ -16,7 +16,17 @@ from random import uniform
 from secrets import WIFI_SSID
 from secrets import WIFI_PASS
 from secrets import DEVICE_ID
-from secrets import SECRET_KEY  # noqa
+
+
+# Provisioned boards with secure elements can provide key and
+# certificate URIs in the SE, in following format:
+KEY_PATH = "se05x:token=0x00000064"  # noqa
+CERT_PATH = "se05x:token=0x00000065"  # noqa
+
+# Alternatively, the key and certificate files can be stored
+# on the internal filesystem in DER format:
+#KEY_PATH = "key.der"  # noqa
+#CERT_PATH = "cert.der"  # noqa
 
 
 def on_switch_changed(client, value):
@@ -69,9 +79,16 @@ if __name__ == "__main__":
     wifi_connect()
 
     # Create a client object to connect to the Arduino IoT cloud.
-    # The most basic authentication method uses a username and password. The username is the device
-    # ID, and the password is the secret key obtained from the IoT cloud when provisioning a device.
-    client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=SECRET_KEY, sync_mode=False)
+    # For mTLS authentication, "keyfile" and "certfile" can be paths to a DER-encoded key and
+    # a DER-encoded certificate, or secure element (SE) URIs in the format: provider:token=slot
+    client = ArduinoCloudClient(
+        device_id=DEVICE_ID,
+        ssl_params={
+            "keyfile": KEY_PATH, "certfile": CERT_PATH, "cadata": CADATA,
+            "verify_mode": ssl.CERT_REQUIRED, "server_hostname": "iot.arduino.cc"
+        },
+        sync_mode=False,
+    )
 
     # Register cloud objects.
     # Note: The following objects must be created first in the dashboard and linked to the device.
