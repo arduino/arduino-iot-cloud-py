@@ -29,6 +29,7 @@ CADATA = binascii.unhexlify(
     b"f612f28123ee92d55b5bfb11d7ecec3f86c5a767"
 )
 
+
 class Location(ArduinoCloudObject):
     def __init__(self, name, **kwargs):
         super().__init__(name, keys={"lat", "lon"}, **kwargs)
