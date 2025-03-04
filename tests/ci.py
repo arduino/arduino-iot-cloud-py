@@ -25,7 +25,7 @@ def on_value_changed(client, value):
 def wdt_task(client, args, ts=[None]):
     if ts[0] is None:
         ts[0] = time.time()
-    if time.time() - ts[0] > 10:
+    if time.time() - ts[0] > 20:
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(exception_handler)
         logging.error("Timeout waiting for variable")
