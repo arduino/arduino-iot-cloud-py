@@ -8,6 +8,7 @@ import sys
 import asyncio
 from arduino_iot_cloud import ArduinoCloudClient
 from arduino_iot_cloud import Task
+from arduino_iot_cloud import CADATA # noqa
 import argparse
 
 
@@ -48,6 +49,9 @@ if __name__ == "__main__":
         "-f", "--file-auth", action="store_true", help="Use key/cert files"
     )
     parser.add_argument(
+        "-ca", "--ca-data", action="store_true", help="Use embedded CADATA"
+    )
+    parser.add_argument(
         "-s", "--sync", action="store_true", help="Run in synchronous mode"
     )
     args = parser.parse_args()
@@ -76,12 +80,14 @@ if __name__ == "__main__":
     elif args.file_auth:
         import ssl
         fmt = "der" if sys.implementation.name == "micropython" else "pem"
+        ca_key = "cadata" if args.ca_data else "cafile"
+        ca_val = CADATA if args.ca_data else f"ca-root.{fmt}"
         client = ArduinoCloudClient(
             device_id=os.getenv("DEVICE_ID"),
             ssl_params={
                 "keyfile": f"key.{fmt}",
                 "certfile": f"cert.{fmt}",
-                "ca_certs": f"ca-root.{fmt}",
+                ca_key: ca_val,
                 "cert_reqs": ssl.CERT_REQUIRED,
             },
             sync_mode=args.sync,
@@ -95,7 +101,7 @@ if __name__ == "__main__":
                 "use_hsm": True,
                 "keyfile": "pkcs11:token=arduino",
                 "certfile": "pkcs11:token=arduino",
-                "ca_certs": "ca-root.pem",
+                "cafile": "ca-root.pem",
                 "cert_reqs": ssl.CERT_REQUIRED,
                 "engine_path": "/lib/x86_64-linux-gnu/engines-3/libpkcs11.so",
                 "module_path": "/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so",
