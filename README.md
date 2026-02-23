@@ -138,3 +138,23 @@ With the key and certificate set, the example can be run with the following comm
 * [m2crypto](https://github.com/m2crypto/m2crypto)
 * [umqtt.simple](https://github.com/micropython/micropython-lib/tree/master/micropython/umqtt.simple)
 * [openssl docs/man](https://www.openssl.org/docs/man1.0.2/man3/)
+
+## How to update the license of the dependencies
+The license of the dependencies can be updated by running the following commands:
+
+- Create a virtual environment and install the dependencies:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install .
+```
+
+- Install the licensed tool: https://github.com/licensee/licensed?tab=readme-ov-file#installation
+
+- Run the licensed tool to update the licenses files:
+
+```sh
+    licensed cache
+    licensed status
+```
