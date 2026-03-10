@@ -1,0 +1,35 @@
+sources:
+  pip: true
+
+python:
+  virtual_env_dir: ".venv"
+
+ignored:
+  pip:
+    - arduino_iot_cloud
+    - pip
+
+allowed:
+  - mit
+  - apache-2.0
+  - bsd-2-clause
+  - bsd-3-clause
+  - isc
+  - unlicense
+  - wtfpl
+  - 0bsd
+  - zlib
+  - bsl-1.0
+  - mpl-2.0
+  - epl-2.0
+  - cddl-1.0
+  - gpl-1.0-only
+  - gpl-1.0-or-later
+  - gpl-2.0-only
+  - gpl-2.0-or-later
+  - gpl-3.0-only
+  - gpl-3.0-or-later
+  - lgpl-3.0-linking-exception
+
+apps:
+  - source_path: ./
