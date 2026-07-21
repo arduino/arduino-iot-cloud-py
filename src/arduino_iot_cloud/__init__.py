@@ -8,6 +8,7 @@ import binascii
 from .ucloud import ArduinoCloudClient  # noqa
 from .ucloud import ArduinoCloudObject
 from .ucloud import ArduinoCloudObject as Task  # noqa
+from .ucloud import CloudConfigError  # noqa
 from .ucloud import timestamp
 
 

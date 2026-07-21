@@ -109,11 +109,13 @@ if __name__ == "__main__":
     # to client.register().
     client.register(Task("user_task", on_run=user_task, interval=1.0))
 
-    # Start the Arduino IoT cloud client. In synchronous mode, this function returns immediately
-    # after connecting to the cloud.
+    # Start the Arduino IoT cloud client. In synchronous mode, this function blocks until
+    # connected and returns; it raises CloudConfigError if the device is misconfigured.
     client.start()
 
     # In sync mode, start returns after connecting, and the client must be polled periodically.
+    # update() never blocks: transient connection/discovery errors are retried internally, so
+    # this loop keeps running through a network outage, and only a CloudConfigError propagates.
     while True:
         client.update()
         time.sleep(0.100)
