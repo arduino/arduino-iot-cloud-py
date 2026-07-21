@@ -49,10 +49,13 @@ client = ArduinoCloudClient(device_id=DEVICE_ID, ..., sync_mode=True)
 ....
 client.register("led", value=None)
 ....
-# In synchronous mode, this function returns immediately after connecting to the cloud.
+# In synchronous mode, this function blocks until connected and returns. It raises
+# a CloudConfigError if the device is misconfigured (e.g. not linked to a Thing).
 client.start()
 
-# Update the client periodically.
+# Update the client periodically. update() never blocks: it retries transient
+# connection/discovery errors internally, so the loop keeps running during a
+# network outage, and only raises on a fatal CloudConfigError.
 while True:
     client.update()
     time.sleep(0.100)
