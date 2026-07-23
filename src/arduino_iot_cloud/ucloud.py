@@ -34,6 +34,12 @@ class DoneException(Exception):
     pass
 
 
+class CloudConfigError(Exception):
+    # Fatal, non-retryable configuration error (e.g. device not linked
+    # to a Thing). Propagates out of sync-mode start()/update().
+    pass
+
+
 def timestamp():
     return int(time.time())
 
@@ -198,6 +204,12 @@ class ArduinoCloudClient:
         self.ntp_timeout = ntp_timeout
         self.async_mode = not sync_mode
         self.connected = False
+        # Sync-mode (re)connection state, used by update() to attempt
+        # non-blocking, rate-limited reconnections with backoff.
+        self.conn_interval = 1.0
+        self.conn_backoff = 1.2
+        self.last_conn_ms = 0
+        self.last_disc_ms = 0
 
         # Convert args to bytes if they are passed as strings.
         if isinstance(device_id, str):
@@ -354,7 +366,7 @@ class ArduinoCloudClient:
         if self.records.get("thing_id").value is not None:
             self.thing_id = self.records.pop("thing_id").value
             if not self.thing_id:  # Empty thing ID should not happen.
-                raise Exception("Device is not linked to a Thing ID.")
+                raise CloudConfigError("Device is not linked to a Thing ID.")
 
             self.topic_out = self.create_topic("e", "o")
             self.mqtt.subscribe(self.create_topic("e", "i"))
@@ -433,26 +445,60 @@ class ArduinoCloudClient:
                 except (CancelledError, InvalidStateError):
                     pass
 
+    def step_connect(self, ts):
+        # Called from start() and update(). Make at most one connection
+        # attempt, rate-limited by a backoff interval. Transient errors are
+        # logged and retried on the next step; fatal CloudConfigError
+        # propagates to the caller.
+        if self.connected or not self.ts_expired(ts, self.last_conn_ms, self.conn_interval):
+            return
+        try:
+            self.poll_connect()
+        except CloudConfigError:
+            raise
+        except Exception as e:
+            self.connected = False
+            if log_level_enabled(logging.WARNING):
+                logging.warning(f"Connection failed {e}, retrying...")
+        if self.last_conn_ms != 0:
+            self.conn_interval = min(self.conn_interval * self.conn_backoff, 5.0)
+        self.last_conn_ms = ts
+        if self.connected:
+            # Restart the backoff sequence on the next disconnect.
+            self.conn_interval = 1.0
+            self.last_conn_ms = 0
+
+    def step_discovery(self, ts):
+        # Called from start() and update(). Run one rate-limited discovery
+        # step, if connected. Transient errors force a reconnect (discovery
+        # restarts from the device topic subscription in poll_connect());
+        # fatal CloudConfigError propagates to the caller.
+        if not self.connected or self.thing_id is not None:
+            return
+        if not self.ts_expired(ts, self.last_disc_ms, 0.250):
+            return
+        try:
+            self.poll_discovery()
+        except CloudConfigError:
+            raise
+        except Exception as e:
+            self.connected = False
+            if log_level_enabled(logging.WARNING):
+                logging.warning(f"Discovery failed {e}, reconnecting...")
+        self.last_disc_ms = ts
+
     def start(self, interval=1.0, backoff=1.2):
         if self.async_mode:
             asyncio.run(self.run(interval, backoff))
             return
 
-        last_conn_ms = 0
-        last_disc_ms = 0
+        self.conn_interval = interval
+        self.conn_backoff = backoff
 
         while True:
             ts = timestamp_ms()
-            if not self.connected and self.ts_expired(ts, last_conn_ms, interval):
-                self.poll_connect()
-                if last_conn_ms != 0:
-                    interval = min(interval * backoff, 5.0)
-                last_conn_ms = ts
-
-            if self.connected and self.thing_id is None and self.ts_expired(ts, last_disc_ms, 0.250):
-                self.poll_discovery()
-                last_disc_ms = ts
-
+            self.step_connect(ts)
+            self.step_discovery(ts)
             if self.connected and self.thing_id is not None:
                 break
             self.poll_records()
@@ -461,13 +507,20 @@ class ArduinoCloudClient:
         if self.async_mode:
             raise RuntimeError("This function can't be called in asyncio mode.")
 
-        if not self.connected:
-            try:
-                self.start()
-            except Exception as e:
-                raise e
+        # NOTE: Unlike start(), update() never blocks waiting for a
+        # connection. While disconnected, at most one connection attempt
+        # is made per call, rate-limited by a backoff interval, so the
+        # caller's loop keeps running during a network outage. Transient
+        # connection/discovery errors are retried internally; only a fatal
+        # CloudConfigError (e.g. an unlinked device) propagates.
+        ts = timestamp_ms()
+        self.step_connect(ts)
+        self.step_discovery(ts)
 
         self.poll_records()
+
+        if not self.connected or self.thing_id is None:
+            return
 
         try:
             self.poll_mqtt()
